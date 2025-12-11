@@ -1,0 +1,72 @@
+{% load static %}
+
+<html>
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Next Track : Music Recommender System</title>
+        <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
+    </head>
+    <body>
+        <!-- input box for track id -->
+        <form action="/add_to_inputs/"  class="input_box_trackId_container">
+            <input type="text" class="input_id_bar">
+            <input type="submit" value="Add" class="input_id_btn">
+        </form>
+
+        <!-- div for input user preference -->
+        <div>
+
+        </div>
+        
+        <!-- div for displaying tracks (user inputs and recommended song) -->
+        <div class="main_container">
+
+            <!-- div for displaying user input tracks -->
+            <div class="input_display_container">
+
+                <h3>Your Input Tracks</h3>
+                <!-- track details -->
+                <div class="outer_track_detail_container">
+                    <div class="track-detail-container1">
+                        <!-- first line -->
+                        <div class="track-detail-container2">
+                            <p>Photograph</p>
+                            <p>Ed Shreen</p>
+                        </div>
+                        <!-- second line -->
+                        <p>4qEoqyPbLYnLOii6mKlIjI</p>
+                    </div>
+
+
+                    <!-- remove btn -->
+                    <form action="/remove_from_inputs/" class="remove_btn_container">
+                        <input type="button" value="Remove" class="remove_btn">
+                    </form>
+
+                    
+                </div>
+            </div>
+
+            <!-- div for displaying recommendation -->
+            <div class="recommendation_display_container">  
+                <h3>Recommendation</h3>
+                <!-- recommended track details -->
+                <div class="recom_track_container">
+                    <!-- track details -->
+                    <div class="recom_track-detail-container">
+                        <p>Track  : Shape of You</p>
+                        <p>Artist : Ed Shreen</p>
+                        <a href="https://open.spotify.com/track/1HNkqx9Ahdgi1Ixy2xkKkL">https://open.spotify.com/track/1HNkqx9Ahdgi1Ixy2xkKkL</a>
+                    </div>   
+                    <div>
+                        <p>music player</p>
+                    </div>   
+                </div>
+            </div>
+
+        </div>
+
+        <input type="button" value="Recommend" class="recommend_btn">
+    </body>
+</html>
