@@ -9,8 +9,11 @@
     </head>
     <body>
         <!-- input box for track id -->
-        <form action="/add_to_inputs/"  class="input_box_trackId_container">
-            <input type="text" class="input_id_bar">
+        <form action="/add_to_inputs/"  class="input_box_trackId_container" method="POST">
+            
+            {% csrf_token %}
+
+            <input type="text" name="input_track_id" class="input_id_bar">
             <input type="submit" value="Add" class="input_id_btn">
         </form>
 
@@ -26,6 +29,8 @@
             <div class="input_display_container">
 
                 <h3>Your Input Tracks</h3>
+
+                {% for track in tracks %}
                 <!-- track details -->
                 <div class="outer_track_detail_container">
                     <div class="track-detail-container1">
@@ -35,17 +40,18 @@
                             <p>Ed Shreen</p>
                         </div>
                         <!-- second line -->
-                        <p>4qEoqyPbLYnLOii6mKlIjI</p>
+                        <p>{{track}}</p>
                     </div>
 
-
-                    <!-- remove btn -->
-                    <form action="/remove_from_inputs/" class="remove_btn_container">
-                        <input type="button" value="Remove" class="remove_btn">
-                    </form>
-
+                    <div class="remove_btn_container">
+                        <!-- remove btn -->
+                        <button onclick="window.location.href='/remove_from_inputs/{{ track }}'" class="remove_btn">Remove</button>
+                    </div>
                     
                 </div>
+
+                {% endfor %}
+
             </div>
 
             <!-- div for displaying recommendation -->
