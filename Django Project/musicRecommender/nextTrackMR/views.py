@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
+from .models import *
 
 # fetching track data from Spotify API
 import spotipy
@@ -7,9 +8,10 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 # Create your views here.
 def index(request):
-
     input_tracks = request.session.get('input_tracks', [])
-    return render(request, 'nextTrackMR/index.html', {'tracks': input_tracks})
+    recommended_track = request.session.get('recommended_track', None)
+    print (input_tracks, recommended_track)
+    return render(request, 'nextTrackMR/index.html', {'tracks': input_tracks, 'recommended_track': recommended_track})
 
 
 # add track 
@@ -89,7 +91,7 @@ def addTrack(request):
 #             print("Your track is not in the input list of tracks")
 #     return HttpResponseRedirect("/")
         
-
+# remove track
 def removeTrack(request, track_id):
     if 'input_tracks' in request.session:
         for track in request.session['input_tracks']:
@@ -99,3 +101,41 @@ def removeTrack(request, track_id):
         else:
             print("Your track is not in the input list of tracks")
     return HttpResponseRedirect("/")
+
+
+def recommend(request):
+    print("recommend")
+    if 'recommended_track' not in request.session: 
+        request.session['recommeded_track'] = {}
+
+    # get input track data from session storage
+    if 'input_tracks' in request.session:
+        for track in request.session['input_tracks']:
+            trackId = track.get('id')
+            print("trackId : ", trackId)
+    
+    else: 
+        return HttpResponseRedirect('/')
+
+    # get input user preference from session storage
+
+        
+
+    # recommender logic here
+    recommendation = Track.objects.order_by('?').first()        # randomly shuffle the rows and select first one.
+    linkedArtistIds = TrackArtistLink.objects.filter(track=recommendation.track_id).values_list('artist', flat=True)      # get the track's artist id
+    artists = Artist.objects.filter(artist_id__in=linkedArtistIds).values_list('artist_name', flat=True)
+
+    recommended_track = {
+        'trackId' : recommendation.track_id,
+        'trackName': recommendation.track_name,
+        'artists' :  list(artists)
+    }
+
+    request.session['recommended_track'] = recommended_track            # use session to store recommended track
+
+    print(recommended_track['trackId'], "& ", recommended_track['trackName'] )
+    for artist in recommended_track['artists']:
+        print ("artist : ", artist)
+
+    return HttpResponseRedirect('/')

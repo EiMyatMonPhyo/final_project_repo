@@ -8,6 +8,8 @@
         <link rel="stylesheet" type="text/css" href="{% static 'css/index.css' %}">
     </head>
     <body>
+        <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+
         <!-- input box for track id -->
         <form action="/add_to_inputs/"  class="input_box_trackId_container" method="POST">
             
@@ -29,51 +31,65 @@
             <div class="input_display_container">
 
                 <h3>Your Input Tracks</h3>
+                <div class="scrollable_container">
 
-                {% for track in tracks %}
-                {% if track %}
-                <!-- track details -->
-                <div class="outer_track_detail_container">
-                    <div class="track-detail-container1">
-                        <!-- first line -->
-                        <div class="track-detail-container2">
-                            <p>{{ track.name }}</p>
-                            <p>{{ track.first_artist }}</p>
+                    {% for track in tracks %}
+                    {% if track %}
+                    <!-- track details -->
+                    <div class="outer_track_detail_container">
+                        <div class="track-detail-container1">
+                            <!-- first line -->
+                            <div class="track-detail-container2">
+                                <p>{{ track.name }}</p>
+                                <p>{{ track.first_artist }}</p>
+                            </div>
+                            <!-- second line -->
+                            <p>{{track.id}}</p>
                         </div>
-                        <!-- second line -->
-                        <p>{{track.id}}</p>
-                    </div>
 
-                    <div class="remove_btn_container">
-                        <!-- remove btn -->
-                        <button onclick="window.location.href='/remove_from_inputs/{{ track.id }}'" class="remove_btn">Remove</button>
+                        <div class="remove_btn_container">
+                            <!-- remove btn -->
+                            <button onclick="window.location.href='/remove_from_inputs/{{ track.id }}'" class="remove_btn">Remove</button>
+                        </div>
                     </div>
+                    {% endif%}
+
+                    {% endfor %}
                 </div>
-                {% endif%}
-
-                {% endfor %}
 
             </div>
 
             <!-- div for displaying recommendation -->
             <div class="recommendation_display_container">  
                 <h3>Recommendation</h3>
+                {% if recommended_track %}
                 <!-- recommended track details -->
                 <div class="recom_track_container">
                     <!-- track details -->
                     <div class="recom_track-detail-container">
-                        <p>Track  : Shape of You</p>
-                        <p>Artist : Ed Shreen</p>
-                        <a href="https://open.spotify.com/track/1HNkqx9Ahdgi1Ixy2xkKkL">https://open.spotify.com/track/1HNkqx9Ahdgi1Ixy2xkKkL</a>
-                    </div>   
-                    <div>
-                        <p>music player</p>
+                        <p>Track  : {{recommended_track.trackName}}</p>
+                        <p>Artist : 
+                            {% for artist in recommended_track.artists %}
+                                {{ artist }} 
+                                {% if not forloop.last %}
+                                ,
+                                {% else %}
+                                .
+                                {% endif %}
+                            {% endfor %}
+                        </p>
+                        <a href="https://open.spotify.com/track/{{recommended_track.trackId}}">https://open.spotify.com/track/{{recommended_track.trackId}}</a>
+                    </div>  
+                    
+                    <div class="music_player_container">
+                        <iframe src="https://open.spotify.com/embed/track/{{recommended_track.trackId}}"  frameborder="0" ></iframe>
                     </div>   
                 </div>
+                {% endif %}
             </div>
 
         </div>
 
-        <input type="button" value="Recommend" class="recommend_btn">
+        <button onclick="window.location.href='/recommend'" class="recommend_btn">Recommend</button>
     </body>
 </html>
