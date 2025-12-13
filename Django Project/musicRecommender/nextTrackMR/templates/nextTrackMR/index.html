@@ -31,24 +31,25 @@
                 <h3>Your Input Tracks</h3>
 
                 {% for track in tracks %}
+                {% if track %}
                 <!-- track details -->
                 <div class="outer_track_detail_container">
                     <div class="track-detail-container1">
                         <!-- first line -->
                         <div class="track-detail-container2">
-                            <p>Photograph</p>
-                            <p>Ed Shreen</p>
+                            <p>{{ track.name }}</p>
+                            <p>{{ track.first_artist }}</p>
                         </div>
                         <!-- second line -->
-                        <p>{{track}}</p>
+                        <p>{{track.id}}</p>
                     </div>
 
                     <div class="remove_btn_container">
                         <!-- remove btn -->
-                        <button onclick="window.location.href='/remove_from_inputs/{{ track }}'" class="remove_btn">Remove</button>
+                        <button onclick="window.location.href='/remove_from_inputs/{{ track.id }}'" class="remove_btn">Remove</button>
                     </div>
-                    
                 </div>
+                {% endif%}
 
                 {% endfor %}
 
