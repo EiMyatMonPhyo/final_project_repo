@@ -20,9 +20,31 @@
         </form>
 
         <!-- div for input user preference -->
-        <div>
+        <form action="/update_preference/" method="POST" class="preferences_container">
+            {% csrf_token %}
 
-        </div>
+            <!-- Energy drop down -->
+            <div class="preference_container">
+                <label for="energy" class="preference_label">Energy</label>
+                <select name="energy" class="drop_down_box" onchange="this.form.submit()">
+                    <option value="High" {% if preferences.energy == "High" %}selected {% endif %}>HIGH</option>
+                    <option value="Medium" {% if preferences.energy == "Medium" %}selected {% endif %}>MEDIUM</option>
+                    <option value="Low" {% if preferences.energy == "Low" %}selected {% endif %}>LOW</option>
+                </select>
+            </div>
+
+            <!-- Tempo drop down -->
+            <div class="preference_container">
+                <label for="tempo" class="preference_label">Tempo</label>
+                <select name="tempo"  class="drop_down_box" onchange="this.form.submit()">
+                    <option value="High" {% if preferences.temop == "High" %}selected {% endif %}>HIGH</option>
+                    <option value="Medium" {% if preferences.tempo == "Medium" %}selected {% endif %}>MEDIUM</option>
+                    <option value="Low" {% if preferences.tempo == "Low" %}selected {% endif %}>LOW</option>
+                </select>
+            </div>
+
+        </form>
+
         
         <!-- div for displaying tracks (user inputs and recommended song) -->
         <div class="main_container">

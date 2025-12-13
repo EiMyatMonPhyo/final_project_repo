@@ -10,8 +10,9 @@ from spotipy.oauth2 import SpotifyClientCredentials
 def index(request):
     input_tracks = request.session.get('input_tracks', [])
     recommended_track = request.session.get('recommended_track', None)
-    print (input_tracks, recommended_track)
-    return render(request, 'nextTrackMR/index.html', {'tracks': input_tracks, 'recommended_track': recommended_track})
+    preferences = request.session.get('preferences', {'energy': "Medium", 'tempo': "Medium"})       #set to medium if nothing is selected
+    print ("Current values : " , input_tracks, recommended_track, preferences)
+    return render(request, 'nextTrackMR/index.html', {'tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
 
 
 # add track 
@@ -80,16 +81,30 @@ def addTrack(request):
     input_track_ids = request.session['input_tracks']
     return HttpResponseRedirect('/')
 
+#  preference settings
+def updatePreference(request):
+    
+    # create sesssion var for preferences if not done yet.
+    if 'preferences' not in request.session:
+        request.session['preferences'] = {}
 
-# def removeTrack(request, track_id):
-#     if 'input_tracks' in request.session:
-#         if track_id in request.session['input_tracks']:
-
-#             request.session['input_tracks'].remove(track)
-#             request.session.modified = True
-#         else:
-#             print("Your track is not in the input list of tracks")
-#     return HttpResponseRedirect("/")
+    preferences = {}
+    # get energy value
+    if 'energy'in request.POST:
+        preferences['energy'] = request.POST['energy']
+        print('energy: ', preferences['energy'])
+    
+    # get tempo value
+    if 'tempo' in request.POST:
+        preferences['tempo'] = request.POST['tempo']
+        print('tempo: ', preferences['tempo'])
+    
+    # update to session storage
+    request.session['preferences'] = preferences
+    request.session.modified = True
+    
+    return HttpResponseRedirect('/')
+    
         
 # remove track
 def removeTrack(request, track_id):
@@ -118,10 +133,15 @@ def recommend(request):
         return HttpResponseRedirect('/')
 
     # get input user preference from session storage
-
+    if 'preferences' in request.session:
+        preferences = request.session['preferences']
+        print("preferences passed to Recommendation : ", preferences['energy'], preferences['tempo'])
         
 
     # recommender logic here
+
+
+    # ranndom recommendation
     recommendation = Track.objects.order_by('?').first()        # randomly shuffle the rows and select first one.
     linkedArtistIds = TrackArtistLink.objects.filter(track=recommendation.track_id).values_list('artist', flat=True)      # get the track's artist id
     artists = Artist.objects.filter(artist_id__in=linkedArtistIds).values_list('artist_name', flat=True)
@@ -139,3 +159,4 @@ def recommend(request):
         print ("artist : ", artist)
 
     return HttpResponseRedirect('/')
+

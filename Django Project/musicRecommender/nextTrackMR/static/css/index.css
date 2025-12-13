@@ -25,6 +25,37 @@ body {
     border-radius: 0 16px 16px 0;
 }
 
+/* user preference */
+.preferences_container{
+    width: 90%;
+    height: 8%;
+    margin: 20px auto;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.preference_container {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.preference_label {
+    color: #E0E1DD;
+    margin-right: 10px;
+}
+
+.drop_down_box {
+    height : 100%;
+    border-radius: 16px;
+    background-color: #778DA9;
+    color:  #0D1B2A;
+    padding: 10px;
+}
+
 
 /* main context */
 .main_container {
