@@ -148,7 +148,7 @@ def recommend(request):
 
     recommended_track = {
         'trackId' : recommendation.track_id,
-        'trackName': recommendation.track_name,
+        'trackName': recommendation.fixed_track_name,
         'artists' :  list(artists)
     }
 
