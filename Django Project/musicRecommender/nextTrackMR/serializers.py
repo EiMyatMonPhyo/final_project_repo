@@ -16,7 +16,7 @@ class TrackIdRecommendationSerializer(serializers.ModelSerializer):
 
 # example api input##
 # {
-#   "track_ids": ["7b6KnSrleI0lSZseL9GE50", "7AUwzJfMl574Sd6zbQStEm"],
+#   "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2"],
 #   "preferences": {
 #     "energy_weight": 1.2,
 #     "tempo_weight": 1.0
