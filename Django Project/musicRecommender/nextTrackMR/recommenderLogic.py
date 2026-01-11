@@ -177,3 +177,96 @@ def recommend_Euclidean(input_track_ids, input_preferences):
     # choose random track
     # # track = Track.objects.order_by('?').first()
     return track
+
+
+
+# baseline models
+
+"""
+    input : 2 vectors (target and other song vector)
+    output : cosine similarity value output
+    function : calculate Cosine Similarity and return the result
+"""
+def calculate_Cosine(vector1, vector2):
+    result = np.dot(vector1, vector2)/ (np.linalg.norm(vector1) * np.linalg.norm(vector2))
+    return result
+
+
+"""
+    input : list of distances (cosine)
+    output : index with closest to 1 cosine distance value
+    function : find the index with closest to 1 cosine distance value and returns that index
+"""
+def get_closest_to_one_index(comparison_results):
+    closestToOne = 0
+    closestToOneIndex = None
+    for index, result in enumerate(comparison_results):
+        if (result >= 0 and result <= 1):       #within the range 0-1
+            if (closestToOne < result):         # if new value is larger than closestToOne, 
+                closestToOne = result           # replace closestToOne with larger new value
+                closestToOneIndex = index       # replace closestToOneIndex with index
+    return closestToOneIndex
+
+
+# Cosine similarity based recommendation logic
+def recommend_Cosine(input_track_ids, input_preferences):
+    # for null input tracks
+    if not input_track_ids:
+        raise ValueError("No input tracks provided")
+    
+    # for null input preferences 
+    if input_preferences is None:
+        input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
+
+
+
+    # find finalized vectors of the input track ids in the database
+    input_vectors = get_track_vectors_from_database(input_track_ids)
+
+
+
+    # find average vector
+    avg_vector = np.mean(input_vectors, axis=0)      #column wise
+    print (avg_vector)
+
+
+
+    # get preferences
+    energy_weight = input_preferences["energy_weight"]
+    tempo_weight = input_preferences["tempo_weight"]
+    
+    # weighting with user preferences
+    target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
+
+
+    # Find the other valid songs in the database (excluding input tracks)
+    all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
+    
+
+    
+    # get the list of distances between each valid song and target vector
+    comparison_results = []     # comparison results to be stored in this array
+    # for every track (excluding the ones the user inputs), check the similarity with Euclidean
+    for track in all_tracks:        
+        vector = track.finalized_vector     # vector of the current track of the database
+        cosine = calculate_Cosine(target_vector, np.array(json.loads(vector)))
+        comparison_results.append(cosine)        # store to the array
+    print (comparison_results)
+
+    # get the index with cosine distance closest to 1
+    closestToOneIndex = get_closest_to_one_index(comparison_results)
+
+   
+    # find the matching track's data in database
+    print ("the matching track : ", all_tracks[closestToOneIndex])      # the same index of all tracks list
+    track = all_tracks[closestToOneIndex]
+
+
+
+    # choose random track
+    # # track = Track.objects.order_by('?').first()
+    return track 
+
+
+def recommend_random_by_artist(input_track_ids, input_preferences):
+    pass
