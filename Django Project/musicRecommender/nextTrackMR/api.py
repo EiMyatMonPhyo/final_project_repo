@@ -14,10 +14,15 @@ def recommendTrackId(request):
 
     if serializer.is_valid():
         input_track_ids = serializer.validated_data.get('track_ids')
-        input_preferences = serializer.validated_data.get('preferences')
+        input_preferences = serializer.validated_data.get('preferences') or {"energy_weight" : 1.0, "tempo_weight" : 1.0}
 
-       
-        track = recommend_Euclidean(input_track_ids, input_preferences)
+        
+        try:
+            track = recommend_Euclidean(input_track_ids, input_preferences)
+
+        except ValueError as e: 
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
         # put output to serializer
         serializer_output = TrackIdRecommendationSerializer(track)
         return Response(serializer_output.data)

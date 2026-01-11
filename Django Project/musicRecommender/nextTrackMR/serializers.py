@@ -6,7 +6,7 @@ class PreferenceSerializer(serializers.Serializer):
     tempo_weight = serializers.FloatField(required=False, min_value=0.5, max_value=1.5, default=1.0)
 
 class RecommenderInputSerializer(serializers.Serializer):
-    track_ids = serializers.ListField(child=serializers.CharField(required=True, allow_blank=False, max_length=22))
+    track_ids = serializers.ListField(child=serializers.CharField(required=True, allow_blank=False, max_length=22),min_length=1)
     preferences = PreferenceSerializer(required=False)
 
 class TrackIdRecommendationSerializer(serializers.ModelSerializer):
@@ -16,7 +16,7 @@ class TrackIdRecommendationSerializer(serializers.ModelSerializer):
 
 # example api input##
 # {
-#   "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2"],
+#   "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2","5q21u5TzhSaJPslac3xce8", "5Klo65Y9uouLjNVDV3pqh7"],
 #   "preferences": {
 #     "energy_weight": 1.2,
 #     "tempo_weight": 1.0
