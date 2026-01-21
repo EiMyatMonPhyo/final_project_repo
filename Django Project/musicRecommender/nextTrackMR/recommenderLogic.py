@@ -384,6 +384,10 @@ def get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids):
 # get random Track object of most frequent artist by input tracks list
 def recommend_random_by_artist(input_track_ids):
 
+    # for null input tracks
+    if not input_track_ids:
+        raise ValueError("No input tracks provided")
+
     #list of artist ids of every input tracks
     artist_ids = get_artist_ids_list(input_track_ids)
 
