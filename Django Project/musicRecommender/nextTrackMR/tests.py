@@ -337,6 +337,19 @@ class recommenderLogicTest(TestCase):
         
         with self.assertRaises(ValueError):
             get_random_track_row_of_chosen_artist(chosen_artists, input_tracks)
+        
+    # test if get_any_random_track returns a random track object (but not the tracks in input list of track ids)
+    def test_get_any_random_track_returns_correct(self):
+        # the list of all tracks in the temporary database without the only track id '744ZuzjXQmoJmOdk2I1ym9'
+        input_tracks = ['4qEoqyPbLYnLOii6mKlIjI', '5lz0NiPw32Gq4kMIUJvuw2', '1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv', 'pqrstuvabcklmnodefghij', 'klmnopqrstuvabcdefghij', 'uvabcklmnopqrstdefghij', 'uvabcklefghijmnopqrstd']
+        expected_track = '744ZuzjXQmoJmOdk2I1ym9'       # the only track id not included in input_tracks list
+        random_track = get_any_random_track(input_tracks)
+        
+        self.assertIsInstance(random_track, Track)
+        self.assertEqual(random_track.track_id, expected_track)
+
+        with self.assertRaises(ValueError):     # for None case (no more tracks to be selected from the database)
+            get_any_random_track(input_tracks + [expected_track])
 
     # test if random by artist model returns a track object
     def test_recommend_random_by_artist_returns_track(self):
@@ -344,6 +357,7 @@ class recommenderLogicTest(TestCase):
         
         result = recommend_random_by_artist(input_tracks)
         # self.assertIsInstance(result, Track)
+
 
 # serializer test
 class recommendTrackIdSerializerTest(APITestCase):

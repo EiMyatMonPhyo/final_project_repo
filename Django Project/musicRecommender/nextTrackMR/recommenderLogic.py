@@ -373,9 +373,26 @@ def get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids):
         return track
 
     except:
-        raise ValueError("Artist does not exist")
+        raise ValueError("Error getting track")
 
-
+"""
+    input : a list of input track ids
+    output : a random track 
+    function: find a random track from all tracks (excluding input tracks) in Track table and return that
+"""
+# get a random Track obj if no artist is chosen 
+def get_any_random_track(input_track_ids):
+    try:
+        all_tracks = Track.objects.all().exclude(track_id__in = input_track_ids)
+        track = all_tracks.order_by('?').first()
+    except: 
+        raise ValueError("Error Getting Track")
+    
+    # for rare case like there is no more tracks in the database to select a random track from
+    if track is None:
+        raise ValueError("No available track for recommendation")
+    return track
+    
 """
     input : list of user input tracks (input_track_ids)
     output : random Track of most frequent artist
@@ -407,7 +424,10 @@ def recommend_random_by_artist(input_track_ids):
     else: 
         chosen_artist_id = None
 
-    # get a random Track obj (excluding user input tracks) of the chosen artist 
-    track = get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids)
-
+    if chosen_artist_id is not None:
+        # get a random Track obj (excluding user input tracks) of the chosen artist 
+        track = get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids)
+    else:
+        # if no artist is chosen, get any track
+        track = get_any_random_track(input_track_ids)
     return track
