@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from .models import *
+from .recommenderLogic import *
 
 # fetching track data from Spotify API
 import spotipy
@@ -8,9 +9,10 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 # Create your views here.
 def index(request):
+    # request.session.flush()
     input_tracks = request.session.get('input_tracks', [])
     recommended_track = request.session.get('recommended_track', None)
-    preferences = request.session.get('preferences', {'energy': "Medium", 'tempo': "Medium"})       #set to medium if nothing is selected
+    preferences = request.session.get('preferences', {'energy_weight': "Medium", 'tempo_weight': "Medium"})       #set to medium if nothing is selected
     print ("Current values : " , input_tracks, recommended_track, preferences)
     return render(request, 'nextTrackMR/index.html', {'tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
 
@@ -81,23 +83,32 @@ def addTrack(request):
     input_track_ids = request.session['input_tracks']
     return HttpResponseRedirect('/')
 
+def convert_weight_input(value):
+    if value == 'High':
+        weight = 1.2
+    elif value == 'Medium':
+        weight = 1.0
+    elif value == 'Low':
+        weight = 0.8
+    print ("weight convert to ", weight)
+    return weight
+
 #  preference settings
 def updatePreference(request):
-    
     # create sesssion var for preferences if not done yet.
     if 'preferences' not in request.session:
-        request.session['preferences'] = {}
+        request.session['preferences'] = {'energy_weight': "Medium", 'tempo_weight': "Medium"}
 
-    preferences = {}
+    preferences = request.session['preferences'].copy()
     # get energy value
-    if 'energy'in request.POST:
-        preferences['energy'] = request.POST['energy']
-        print('energy: ', preferences['energy'])
-    
+    if 'energy_weight'in request.POST:
+        preferences['energy_weight'] = convert_weight_input(request.POST['energy_weight'])
+        print('energy: ', preferences['energy_weight'])
+
     # get tempo value
-    if 'tempo' in request.POST:
-        preferences['tempo'] = request.POST['tempo']
-        print('tempo: ', preferences['tempo'])
+    if 'tempo_weight' in request.POST:
+        preferences['tempo_weight'] = convert_weight_input(request.POST['tempo_weight'])
+        print('tempo: ', preferences['tempo_weight'])
     
     # update to session storage
     request.session['preferences'] = preferences
@@ -120,13 +131,19 @@ def removeTrack(request, track_id):
 
 def recommend(request):
     print("recommend")
+    
     if 'recommended_track' not in request.session: 
         request.session['recommeded_track'] = {}
 
+    if 'preferences' not in request.session:
+        request.session['preferences'] = {'energy_weight' : 1.0, 'tempo_weight': 1.0} 
+
     # get input track data from session storage
     if 'input_tracks' in request.session:
+        input_track_ids = []
         for track in request.session['input_tracks']:
             trackId = track.get('id')
+            input_track_ids.append(trackId)
             print("trackId : ", trackId)
     
     else: 
@@ -135,14 +152,14 @@ def recommend(request):
     # get input user preference from session storage
     if 'preferences' in request.session:
         preferences = request.session['preferences']
-        print("preferences passed to Recommendation : ", preferences['energy'], preferences['tempo'])
-        
+        print("preferences passed to Recommendation : ", preferences['energy_weight'], preferences['tempo_weight'])
 
+    
     # recommender logic here
-
+    recommendation = recommend_Euclidean(input_track_ids, preferences)
 
     # ranndom recommendation
-    recommendation = Track.objects.order_by('?').first()        # randomly shuffle the rows and select first one.
+    # recommendation = Track.objects.order_by('?').first()        # randomly shuffle the rows and select first one.
     linkedArtistIds = TrackArtistLink.objects.filter(track=recommendation.track_id).values_list('artist', flat=True)      # get the track's artist id
     artists = Artist.objects.filter(artist_id__in=linkedArtistIds).values_list('artist_name', flat=True)
 

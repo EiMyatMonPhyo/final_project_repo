@@ -25,21 +25,21 @@
 
             <!-- Energy drop down -->
             <div class="preference_container">
-                <label for="energy" class="preference_label">Energy</label>
-                <select name="energy" class="drop_down_box" onchange="this.form.submit()">
-                    <option value="High" {% if preferences.energy == "High" %}selected {% endif %}>HIGH</option>
-                    <option value="Medium" {% if preferences.energy == "Medium" %}selected {% endif %}>MEDIUM</option>
-                    <option value="Low" {% if preferences.energy == "Low" %}selected {% endif %}>LOW</option>
+                <label for="energy_weight" class="preference_label">Energy</label>
+                <select name="energy_weight" class="drop_down_box" onchange="this.form.submit()">
+                    <option value="High" {% if preferences.energy_weight == 1.2 %}selected {% endif %}>HIGH</option>
+                    <option value="Medium" {% if preferences.energy_weight == 1.0 %}selected {% endif %}>MEDIUM</option>
+                    <option value="Low" {% if preferences.energy_weight == 0.8 %}selected {% endif %}>LOW</option>
                 </select>
             </div>
 
             <!-- Tempo drop down -->
             <div class="preference_container">
-                <label for="tempo" class="preference_label">Tempo</label>
-                <select name="tempo"  class="drop_down_box" onchange="this.form.submit()">
-                    <option value="High" {% if preferences.temop == "High" %}selected {% endif %}>HIGH</option>
-                    <option value="Medium" {% if preferences.tempo == "Medium" %}selected {% endif %}>MEDIUM</option>
-                    <option value="Low" {% if preferences.tempo == "Low" %}selected {% endif %}>LOW</option>
+                <label for="tempo_weight" class="preference_label">Tempo</label>
+                <select name="tempo_weight"  class="drop_down_box" onchange="this.form.submit()">
+                    <option value="High" {% if preferences.temop_weight == 1.2 %}selected {% endif %}>HIGH</option>
+                    <option value="Medium" {% if preferences.tempo_weight == 1.0 %}selected {% endif %}>MEDIUM</option>
+                    <option value="Low" {% if preferences.tempo_weight == 0.8 %}selected {% endif %}>LOW</option>
                 </select>
             </div>
 

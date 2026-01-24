@@ -107,7 +107,7 @@ def get_track_index_with_minimum_distance(comparison_results):
     return min_index
     
   
-
+# main model using Euclidean 
 def recommend_Euclidean(input_track_ids, input_preferences):
 
     # for null input tracks
