@@ -19,15 +19,18 @@ def index(request):
 
 # add track 
 def addTrack(request):
+    # get the input (track id) from the form (frontend UI)
     trackId = request.POST.get("input_track_id")
-    input_track_ids = None
 
+    input_track_ids = None       
 
+    # spotify object
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
         client_id="47dc85eef7e04cd1bc31b8eeff714f8d",
         client_secret="2b2b7edc77c44b79b63db43deba0fce8"
     ))
 
+    # create session variable for 'input_tracks' 
     if 'input_tracks' not in request.session: 
         request.session['input_tracks'] = []       #set empty list if session variable 'input_tracks' is defined yet
     
@@ -41,6 +44,7 @@ def addTrack(request):
             # fetch artist data
             
             track = sp.track(trackId)
+            # fetch track artists
             artist_names = [artist['name'] for artist in track['artists']]       # list of artists of the track
 
             # fetch track name 
@@ -64,6 +68,7 @@ def addTrack(request):
             print(artist_names)
             print(track_name)
 
+            # the data we need for displaying on the UI
             trackDetails = {
                 'id' : trackId,
                 'name' : track['name'],
@@ -128,46 +133,54 @@ def removeTrack(request, track_id):
             print("Your track is not in the input list of tracks")
     return HttpResponseRedirect("/")
 
+# get a list of track ids from a list of input tracks details(dict)
+def get_input_track_id_list(input_tracks_list):
+    input_track_ids = []
+    for track in input_tracks_list:
+        trackId = track.get('id')
+        input_track_ids.append(trackId)
+    return input_track_ids
+
+# get artists of the recommended track
+def get_artists_list(recommendation):
+    linkedArtistIds = TrackArtistLink.objects.filter(track=recommendation.track_id).values_list('artist', flat=True)      # get the track's artist id
+    artists = Artist.objects.filter(artist_id__in=linkedArtistIds).values_list('artist_name', flat=True)
+    return list(artists)
 
 def recommend(request):
     print("recommend")
     
+    # create session variable 'recommended_track' 
     if 'recommended_track' not in request.session: 
-        request.session['recommeded_track'] = {}
+        request.session['recommended_track'] = {}
 
+    # create session variable 'preferences' with default values (in case, user does not give any input for preferences) 
     if 'preferences' not in request.session:
         request.session['preferences'] = {'energy_weight' : 1.0, 'tempo_weight': 1.0} 
 
     # get input track data from session storage
     if 'input_tracks' in request.session:
-        input_track_ids = []
-        for track in request.session['input_tracks']:
-            trackId = track.get('id')
-            input_track_ids.append(trackId)
-            print("trackId : ", trackId)
-    
+        input_track_ids = get_input_track_id_list(request.session['input_tracks'])
     else: 
         return HttpResponseRedirect('/')
 
     # get input user preference from session storage
     if 'preferences' in request.session:
         preferences = request.session['preferences']
-        print("preferences passed to Recommendation : ", preferences['energy_weight'], preferences['tempo_weight'])
-
     
-    # recommender logic here
+    # recommender logic 
     recommendation = recommend_Euclidean(input_track_ids, preferences)
 
-    # ranndom recommendation
-    # recommendation = Track.objects.order_by('?').first()        # randomly shuffle the rows and select first one.
-    linkedArtistIds = TrackArtistLink.objects.filter(track=recommendation.track_id).values_list('artist', flat=True)      # get the track's artist id
-    artists = Artist.objects.filter(artist_id__in=linkedArtistIds).values_list('artist_name', flat=True)
+    # get artists of the recommended track
+    artists = get_artists_list(recommendation)
 
     recommended_track = {
         'trackId' : recommendation.track_id,
         'trackName': recommendation.fixed_track_name,
-        'artists' :  list(artists)
+        'artists' :  artists
     }
+
+    print ("recommended : ",recommended_track)
 
     request.session['recommended_track'] = recommended_track            # use session to store recommended track
 

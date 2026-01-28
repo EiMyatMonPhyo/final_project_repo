@@ -1,7 +1,8 @@
-from django.test import TestCase
+from django.test import TestCase, Client
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
+from .views import *
 from .recommenderLogic import *
 from .models import *
 from .serializers import *
@@ -605,12 +606,189 @@ class recommendTrackIDTest(APITestCase):
                                     format = 'json')
         self.assertEqual(response.status_code, 400)
 
+# view (frontend) test
+class frontendFunctionsTest(TestCase):
+    
+    def setUp(self):
+        self.client = Client()  
 
+        # artists
+        self.artist1 = Artist.objects.create(
+            artist_id = '6sCbFbEjbYepqswM1vWjjs',
+            artist_name = 'Zendaya',
+        )
+        self.artist2 = Artist.objects.create(
+            artist_id = '7bp2lSdh12wcA8LyB1srfJ',
+            artist_name = 'Sofia Carson'
+        )
 
+        # tracks
+        self.track1 = TrackFactory.create(
+            track_id='744ZuzjXQmoJmOdk2I1ym9',
+            track_name='"Keep It Undercover - Theme Song From ""K.C. Undercover"""', 
+            fixed_track_name = 'Keep It Undercover',
+            finalized_vector = "[0.7450826033928375, 1.083544620308554, 1.0684725534549997, 0.4721228022873516, 0.41189189895413475, 0.0, 1.0561951260398548]"
+        )
+        self.track4 = TrackFactory.create(
+            track_id='pqrstuvabcklmnodefghij',
+            track_name='random song 1 by Sofia Carson', 
+            fixed_track_name = 'random song 1 by Sofia Carson',
+            finalized_vector = "[0.7450826033928375, 1.083544620308554, 1.0684725534549997, 0.4721228022873516, 0.41189189895413475, 0.0, 1.0561951260398548]"
+        )
+        self.trackCollab = TrackFactory.create(
+            track_id='uvabcklmnopqrstdefghij',
+            track_name='random song 1 by Sofia Carson & Zendaya', 
+            fixed_track_name = 'random song 1 by Sofia Carson & Zendaya',
+            finalized_vector = "[0.7450826033928375, 1.083544620308554, 1.0684725534549997, 0.4721228022873516, 0.41189189895413475, 0.0, 1.0561951260398548]"
+        )
 
-
-
-
-
+        # links
+        self.link1 = TrackArtistLink.objects.create(
+            track= self.track1, 
+            artist= self.artist1
+        )
+        self.link4 = TrackArtistLink.objects.create(
+            track = self.track4,
+            artist = self.artist2
+        )
+        # collab links (one song , two singers)
+        self.link5 = TrackArtistLink.objects.create(
+            track = self.trackCollab,
+            artist = self.artist1
+        )
+        self.link6 = TrackArtistLink.objects.create(
+            track = self.trackCollab,
+            artist = self.artist2
+        )
+    
+    # index function testing
+    # test if index function loads okay, use the right template
+    def test_index_loads_correctly(self):
+        response = self.client.get(reverse('index'))
         
+        self.assertEqual(response.status_code, 200)     # check if the url is successful
+        self.assertTemplateUsed(response, 'nextTrackMR/index.html')     # check if the correct template is rendered
 
+    # test if session variables are true and passed to the html file correctly from the index function
+    def test_session_vars_are_correct(self):
+        sessionVar = self.client.session
+        sessionVar['input_tracks'] = ['abcdefg']
+        sessionVar['recommended_track'] = 'Photograph'
+        sessionVar['preferences'] = {'energy_weight': "Medium", 'tempo_weight': "Medium"}
+
+        sessionVar.save()
+
+        response = self.client.get(reverse('index'))
+
+        # test if the session variables and variables passed to HTML are the same (checking for all three sessioin variables)
+        self.assertEqual(response.context['tracks'], sessionVar['input_tracks'])        
+        self.assertEqual(response.context['recommended_track'], sessionVar['recommended_track'])
+        self.assertEqual(response.context['preferences'], sessionVar['preferences'])
+
+    # addTrack funtion testing
+    # testing if the add_to_inputs url does correctly, session variable is created and stores a correct input
+    def test_add_track_correct(self):
+        add_track_url = '/add_to_inputs/'
+        valid_input_id = '4TSxpQC5oY6XBkUSLPYM6G'
+
+        response = self.client.post(add_track_url, {'input_track_id' : valid_input_id})
+
+        sessionVar = self.client.session
+        self.assertEqual(response.status_code, 302)     #redirected 
+        self.assertIn('input_tracks',sessionVar)        #input_tracks session var is created
+        self.assertEqual(len(sessionVar['input_tracks']), 1)        #input_tracks session var has one element in it
+        self.assertEqual(sessionVar["input_tracks"][0]['id'], valid_input_id)       # the element in the input_tracks session var is track details related to the input id
+
+    def test_add_track_invalid(self):
+        response = self.client.post('/add_to_inputs/', {})
+
+        self.assertEqual(response.status_code, 302)     # redirecting ok
+
+        sessionVar = self.client.session
+        self.assertIn('input_tracks',sessionVar)        # input_tracks session var is created
+        self.assertEqual(len(sessionVar['input_tracks']), 0)            #input_tracks session var has nothing in it
+        self.assertEqual(sessionVar["input_tracks"], [])            #input_tracks session var is empty list
+
+    # test if conver_weight_input function convert correctly
+    def test_convert_weight_input_correct(self):
+        v1 = 'High'
+        v2 = 'Medium'
+        v3 = 'Low'
+        converted1 = convert_weight_input(v1)
+        converted2 = convert_weight_input(v2)
+        converted3 = convert_weight_input(v3)
+        self.assertEqual (converted1, 1.2)
+        self.assertEqual (converted2, 1.0)
+        self.assertEqual (converted3, 0.8)
+
+    # testing if updatePreference function is correct?
+    def test_update_preference_correct(self):
+        update_preference_url = '/update_preference/'
+        valid_input_preference = {'energy_weight': 'High', 'tempo_weight' : 'Low'}
+
+        response = self.client.post(update_preference_url, valid_input_preference)
+
+        sessionVar = self.client.session
+        self.assertEqual(response.status_code, 302)     #redirected 
+        self.assertIn('preferences',sessionVar)        #preferences session var is created
+        self.assertEqual(sessionVar['preferences']['energy_weight'], 1.2)        # preferences session var has correct value 1.2 for High value
+        self.assertEqual(sessionVar['preferences']['tempo_weight'], 0.8)       # preferences session var has correct value 0.8 for Low value
+
+    # testing if removeTrack function works correctly
+    def test_remove_track_correct(self):
+        # creating fake sessionVar
+        sessionVar = self.client.session
+        sessionVar['input_tracks'] = [{'id' : 'abcdefg'}, {'id' : 'hijklmn'},{'id' : 'opqrstu'}]
+        sessionVar.save()
+        
+        sessionVar = self.client.session
+        
+        # test if removing non existing track does not cause any error and remove anything 
+        remove_non_existing_track_url = '/remove_from_inputs/abcdefghijklmnop' 
+        
+        response = self.client.post(remove_non_existing_track_url)
+        sessionVar = self.client.session
+
+        self.assertEqual(response.status_code, 302)     # check if no error
+        self.assertEqual(len(sessionVar['input_tracks']), 3)        # check if length is still the same as created above (3)
+
+        remove_track = 'hijklmn'
+        remove_track_url = '/remove_from_inputs/' + remove_track
+        
+        response1 = self.client.post(remove_track_url)
+        sessionVar = self.client.session
+
+        self.assertEqual(response1.status_code, 302)        # check if no error
+        self.assertEqual(len(sessionVar['input_tracks']), 2)        # check if one element is removed from the list
+        self.assertNotIn(remove_track, [track['id'] for track in sessionVar['input_tracks']])      # check if the removed element is not in the list 
+
+    # test if get_input_track_id_list returns a list of input track ids, given the track details list
+    def test_get_input_track_id_list_returns_correct(self):
+        list_of_dict = [{'id' : 'a', 'name' : 'name1'}, {'id' : 'b', 'name' : 'name2'}, {'id' : 'c', 'name' : 'name3'}]
+        get_ids = get_input_track_id_list(list_of_dict)
+
+        self.assertEqual(len(list_of_dict), len(get_ids))       # check if the lenght of input and output are the same
+        self.assertEqual(['a','b','c'], get_ids)        # check if the expected ids are in the output
+
+    # test if get_artist_list returns a list of artists of the input track
+    def test_get_artist_list_returns_correct(self):
+        artists = get_artists_list(self.trackCollab)
+
+        self.assertEqual(len(artists), 2)   # check if the artists list has 2 elements.
+        self.assertEqual(['Zendaya', 'Sofia Carson'], artists)      # check if artists in the list are correct.
+
+    # test if the recommend function is working as expected
+    def test_recommend_works(self):
+        sessionVar = self.client.session
+
+        sessionVar['input_tracks'] = [{'id': self.track1.track_id}, {'id': self.track4.track_id}]
+        sessionVar['preferences'] = {'energy_weight' : 1.0, 'tempo_weight': 1.0}
+        sessionVar.save()
+
+        recommend_url = '/recommend/'
+
+        response = self.client.get(recommend_url)
+        sessionVar = self.client.session
+        self.assertEqual(response.status_code, 302)     # url successful
+        self.assertIn('recommended_track',sessionVar)       # recommended_track gets created in the function
+        self.assertEqual(sessionVar['recommended_track']['trackId'], self.trackCollab.track_id)     #recommended_track has the expected value
