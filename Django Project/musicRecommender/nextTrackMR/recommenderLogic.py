@@ -427,7 +427,7 @@ def recommend_random_by_artist(input_track_ids):
     if chosen_artist_id is not None:
         # get a random Track obj (excluding user input tracks) of the chosen artist 
         track = get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids)
-        if track is None: 
+        if track is None:   # if none is returned then, that means there is no other tracks from the chosen artist, so just choose random track. 
             track = get_any_random_track(input_track_ids)
     else:
         # if no artist is chosen, get any track
