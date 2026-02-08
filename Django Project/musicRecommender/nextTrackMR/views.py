@@ -129,8 +129,8 @@ def removeTrack(request, track_id):
             if track.get('id') == track_id:     #remove the matching track
                 request.session['input_tracks'].remove(track)
                 request.session.modified = True
-        else:
-            print("Your track is not in the input list of tracks")
+            else:
+                print("Your track is not in the input list of tracks")
     return HttpResponseRedirect("/")
 
 # get a list of track ids from a list of input tracks details(dict)

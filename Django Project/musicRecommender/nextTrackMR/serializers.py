@@ -14,6 +14,7 @@ class TrackIdRecommendationSerializer(serializers.ModelSerializer):
         model = Track
         fields = ['track_id']
 
+
 # example api input##
 # {
 #   "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2","5q21u5TzhSaJPslac3xce8", "5Klo65Y9uouLjNVDV3pqh7"],

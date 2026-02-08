@@ -182,6 +182,75 @@ def recommend_Euclidean(input_track_ids, input_preferences):
     return track
 
 
+# """
+#     input : tuple
+#     output : first index (0) of the tuple, i.e, the track object
+# """
+# # return tuple's result (just something called from sort function in get_top_tracks), 
+# def my_func(result):
+#     return result[1]
+
+"""
+    input : comparison_results (list of tuples (Track obj, its comparison result), k value(amount of recommendations), higher (higher to lower order[Cosine] or lower to higher order[Euclidean]))
+    output : a list of recommended tracks by the model
+    function : sort the comparison results (descending (higher to lower where higher : True) : 10 to 1 & ascending (lower to higher where higher : False)), 
+                take k (if k is greater than the available tracks in db, just take only the amount of exisitng available numbers of tracks)
+                find the top 10 tracks obj from the sorted comparison_results list
+                return that list of top 10
+"""
+# top 10 track objects
+def get_top_tracks(comparison_results, k, higher):
+    comparison_results.sort(key=lambda x: x[1], reverse=higher)
+    k = min(k, len(comparison_results))     # rare but just incase, the number of comparison results (number of availble tracks) is less then k
+    top_k_tracks = [comparison_results[i][0] for i in range(k)] # ith tuple's 0 index (track obj)
+    return top_k_tracks
+
+
+# main model using Euclidean 
+def recommend_Euclidean_topk(input_track_ids, input_preferences, k = 1):
+
+    # for null input tracks
+    if not input_track_ids:
+        raise ValueError("No input tracks provided")
+    
+    # for null input preferences 
+    if input_preferences is None:
+        input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
+
+    ########## recommender logic (Euclidean) ##############
+
+    # find finalized vectors of the input track ids in the database
+    input_vectors = get_track_vectors_from_database(input_track_ids)
+
+    # find average vector
+    avg_vector = np.mean(input_vectors, axis=0)      #column wise
+    # print (avg_vector)
+
+    # get preferences
+    energy_weight = input_preferences["energy_weight"]
+    tempo_weight = input_preferences["tempo_weight"]
+    
+    # weighting with user preferences
+    target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
+
+    # Euclidean (find the matching track)
+    # Find the other valid songs in the database (excluding input tracks)
+    all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
+    
+    # get the list of distances between each valid song and target vector
+    comparison_results = []     # comparison results to be stored in this array
+    # for every track (excluding the ones the user inputs), check the similarity with Euclidean
+    for t in all_tracks:        
+        vector = t.finalized_vector     # vector of the current track of the database
+        euclidean = calculate_Euclidean(target_vector, np.array(json.loads(vector)))
+        comparison_results.append((t, euclidean))        # store to the array
+    # print (comparison_results)
+
+    higher = False
+    top_tracks = get_top_tracks(comparison_results, k, higher)
+
+    return top_tracks
+
 
 # baseline models
 
@@ -213,7 +282,6 @@ def get_closest_to_one_index(comparison_results):
         raise ValueError("No valid cosine similarity found")
     
     return closestToOneIndex
-
 
 # Cosine similarity based recommendation logic
 def recommend_Cosine(input_track_ids, input_preferences):
@@ -260,6 +328,7 @@ def recommend_Cosine(input_track_ids, input_preferences):
         comparison_results.append(cosine)        # store to the array
     # print (comparison_results)
 
+
     # get the index with cosine distance closest to 1
     closestToOneIndex = get_closest_to_one_index(comparison_results)
 
@@ -273,6 +342,59 @@ def recommend_Cosine(input_track_ids, input_preferences):
     # choose random track
     # # track = Track.objects.order_by('?').first()
     return track 
+
+
+# Cosine similarity based recommendation logic
+def recommend_Cosine_topk(input_track_ids, input_preferences, k=1):
+    # for null input tracks
+    if not input_track_ids:
+        raise ValueError("No input tracks provided")
+    
+    # for null input preferences 
+    if input_preferences is None:
+        input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
+
+
+
+    # find finalized vectors of the input track ids in the database
+    input_vectors = get_track_vectors_from_database(input_track_ids)
+
+
+
+    # find average vector
+    avg_vector = np.mean(input_vectors, axis=0)      #column wise
+    # print (avg_vector)
+
+
+
+    # get preferences
+    energy_weight = input_preferences["energy_weight"]
+    tempo_weight = input_preferences["tempo_weight"]
+    
+    # weighting with user preferences
+    target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
+
+
+    # Find the other valid songs in the database (excluding input tracks)
+    all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
+    
+
+    
+    # get the list of distances between each valid song and target vector
+    comparison_results = []     # comparison results to be stored in this array
+    # for every track (excluding the ones the user inputs), check the similarity with Euclidean
+    for t in all_tracks:        
+        vector = t.finalized_vector     # vector of the current track of the database
+        cosine = calculate_Cosine(target_vector, np.array(json.loads(vector)))
+        comparison_results.append((t,cosine))        # store (track_id, its result) tuple to the array
+
+    higher = True
+    # for evaluation, top 10 tracks will be used, so, here, we will recommend 10 tracks
+    top_tracks = get_top_tracks(comparison_results, k, higher)
+    
+    return top_tracks 
+
+
 
 """
     input : list of input track ids
@@ -393,11 +515,11 @@ def get_any_random_track(input_track_ids):
         raise ValueError("No available track for recommendation")
     return track
     
-"""
-    input : list of user input tracks (input_track_ids)
-    output : random Track of most frequent artist
-    function : get artist ids of input track ids, find most frequent artist, randomly choose a Track of that most frequent artist, and return that Track obj
-"""
+# """
+#     input : list of user input tracks (input_track_ids)
+#     output : random Track of most frequent artist
+#     function : get artist ids of input track ids, find most frequent artist, randomly choose a Track of that most frequent artist, and return that Track obj
+# """
 # get random Track object of most frequent artist by input tracks list
 def recommend_random_by_artist(input_track_ids):
 
@@ -433,3 +555,116 @@ def recommend_random_by_artist(input_track_ids):
         # if no artist is chosen, get any track
         track = get_any_random_track(input_track_ids)
     return track
+
+"""
+    input : artist_frequency (Counter object (dictionary) : {"artist_id" : freq, "artist_id" : freq})
+    output : ranking by freq : a list of tuples [("artist_id" : freq),("artist_id" : freq)]
+    function : take a counter obj, find the ranking of frequency using Counter's most_common method, and return the result (list of tuple)
+"""
+# get the ranking of artist frequency
+def get_artist_frequency_ranking(artist_frequency):
+    sorted_artist = artist_frequency.most_common()      # get descending order of ranking for artist frequemcy (most_common is Counter's method)
+    return sorted_artist
+
+"""
+    input : chosen_artist_id (string of artist id), input_track_ids (a list track ids user inputted), recommended_tracks(a list of Track objects which are already in the recommendation list)
+    output : a list of tracks by the chosen_artist_id
+    function : get the artist instance via artist id, 
+                get the Track instances of that artist
+                but exclude the tracks that are already in the input_track_ids and recommended_tracks
+"""
+# get a random track object related to the input artist id
+def get_list_of_random_track_rows_of_chosen_artist(chosen_artist_id, input_track_ids, recommended_tracks):
+    try: 
+        # find tracks of the chosen artist
+        chosen_artist_object = Artist.objects.get(artist_id = chosen_artist_id)     # get artist row with chosen artist id
+        #get Track instances whose related artist rows have chosen artist id (not include the tracks in user input tracks list and tracks already included in recommended_tracks list
+        tracks_by_chosen_artist = Track.objects.filter(trackartistlink__artist = chosen_artist_object).exclude(track_id__in = input_track_ids).exclude(track_id__in = [t.track_id for t in recommended_tracks])  
+
+        return list(tracks_by_chosen_artist)
+
+    except Exception as e:
+        raise ValueError(f"Error getting track : {e}")
+
+"""
+    input : tracks (a list of tracks eligible to be added to the recommended_tracks), recommended_tracks(a list of recommended tracks (Num of tracks in it does not reach to k yet), k (the amount of tracks to be recommended))
+    output : the list of recommended tracks (amount of tracks may or may not reach k)
+    function : check if the number of tracks in recommended_tracks has reached k, if not, add tracks from tracks to recommended_tracks
+"""
+# add tracks to recommended_tracks list
+def add_tracks_to_recommended_tracks_list(tracks, recommended_tracks, k):
+    for t in tracks:
+        if len(recommended_tracks) < k:     # it does not reach k , so, add more
+            recommended_tracks.append(t)
+        else:       # if k is reached, stop adding to the list
+            break
+    return recommended_tracks       # return the recommended tracks list
+
+"""
+    input : input_tracks_id (the list of input tracks user gives), recommended_tracks (the list of recommended tracks)
+    output : list of tracks in database (excluding input tracks and recommended tracks)
+    function : get Track instances which are not included in user input tracks and tracks already in recommended_tracks, return the list of those Track instances
+"""
+# get random tracks (non repeating : no user input tracks , no recommended tracks)
+def get_non_repeating_random_tracks(input_tracks_id, recommended_tracks):
+    # exclude the tracks in input , and tracks already in recommended tracks list, get other tracks 
+    remaining_tracks = Track.objects.exclude(track_id__in = input_tracks_id).exclude(track_id__in = [t.track_id for t in recommended_tracks]).order_by('?')
+    return list(remaining_tracks)
+
+
+# get random Track object of most frequent artist by input tracks list
+def recommend_random_by_artist_topk(input_track_ids, k=1):
+
+    # for null input tracks
+    if not input_track_ids:
+        raise ValueError("No input tracks provided")
+
+    #list of artist ids of every input tracks
+    artist_ids = get_artist_ids_list(input_track_ids)
+
+    # get the artist ids and their corresponding frequency    
+    artist_frequency = get_artist_id_freq(artist_ids)
+
+    recommended_tracks = [] # to store the recommendations
+
+    if artist_frequency:
+        # get descending order of ranking for artist frequemcy (most freq => at the top)
+        sorted_artist_freq = get_artist_frequency_ranking(artist_frequency)
+
+        for artist_id, freq in sorted_artist_freq:
+
+            if (len(recommended_tracks) >= k):
+                break
+            
+            # get the songs by current artist  
+            tracks_by_artist = get_list_of_random_track_rows_of_chosen_artist(artist_id, input_track_ids, recommended_tracks)
+            
+            random.shuffle(tracks_by_artist)        # shuffle the tracks cuz it may be the same song for the artist 
+            
+            # add the elements from tracks_by_artists to recommended tracks list
+            recommended_tracks = add_tracks_to_recommended_tracks_list(tracks_by_artist, recommended_tracks, k)
+
+    # if we are here (all artists are looped, so all of their tracks are added to the recommended_tracks),
+    # and recommended_tracks does not have k-amount of tracks,
+    # then just add random tracks
+
+    # check if length of recommended_tracks does not reach to k
+    if (len(recommended_tracks) < k):
+        remaining_tracks = get_non_repeating_random_tracks(input_track_ids, recommended_tracks)
+
+        recommended_tracks = add_tracks_to_recommended_tracks_list(remaining_tracks, recommended_tracks, k)
+    return recommended_tracks
+    
+# Purely random model
+def recommend_random_topk(input_track_ids, k=1):
+    # for null input tracks
+    if not input_track_ids:
+        raise ValueError("No input tracks provided")
+    
+    recommended_tracks = []
+
+    if(len(recommended_tracks) < k):
+        remaining_tracks = get_non_repeating_random_tracks(input_track_ids, recommended_tracks)
+
+        recommended_tracks = add_tracks_to_recommended_tracks_list(remaining_tracks, recommended_tracks, k)
+    return recommended_tracks

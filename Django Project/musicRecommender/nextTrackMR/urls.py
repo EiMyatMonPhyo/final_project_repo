@@ -10,7 +10,10 @@ urlpatterns = [
     path('update_preference/', views.updatePreference, name='update_preference'),
 
     path('api/recommend/', api.recommendTrackId, name='recommend_track_api'),
+
     # baseline
     path('api/recommend/baseline/cosine/', api.recommendTrackIdCosine, name='recommend_track_cosine_api'),
-    path('api/recommend/baseline/random/', api.recommendTrackIdRandom, name='recommend_track_random_api')
+    path('api/recommend/baseline/random/', api.recommendTrackIdRandom, name='recommend_track_random_api'),
+    path('api/recommend/baseline/random1/', api.recommendTrackIdRandom1, name='recommend_track_random1_api'),
+    
 ]

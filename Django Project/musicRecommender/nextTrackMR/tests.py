@@ -270,6 +270,7 @@ class recommenderLogicTest(TestCase):
     def test_get_artist_id_freq_returns_correct_data(self):
         artist_freq = get_artist_id_freq(['abc', 'abc', 'def', 'abc'])
         self.assertEqual(artist_freq, {'abc' : 3, 'def': 1})
+        self.assertEqual(type(artist_freq), Counter)        # returned type is Counter
 
     # test if the correct maximum value is returned 
     def test_get_max_freq_of_artist_returns_correct_max(self):
@@ -357,8 +358,183 @@ class recommenderLogicTest(TestCase):
         input_tracks = ['744ZuzjXQmoJmOdk2I1ym9', 'uvabcklmnopqrstdefghij', '1rM0CnyUiiw6A9CHJRXjZA']
         
         result = recommend_random_by_artist(input_tracks)
-        # self.assertIsInstance(result, Track)
 
+    ################top k - testing#################
+    ###################Euclidean ###################
+
+    # test if get_top_tracks returns correct data
+    def test_get_top_tracks_return_correct(self):
+        comparison_results = [(self.track1, 0.1),(self.track4, 0.4),(self.track7, 0.6),(self.track3, 0.3),
+                              (self.track6, 0.5),(self.track2, 0.2),(self.track5, 0.4),(self.trackCollab, 0.7)]
+        k = 5
+        higher_Cosine = True # Cosine (higher to lower => highest results returned)
+        higher_Euclidean = False # Euclidean (lower to higher => lowest results returned)
+
+        output_Cosine = get_top_tracks(comparison_results, k, higher_Cosine)
+        output_ids_Cosine = {t.track_id for t in output_Cosine}
+        output_Euclidean = get_top_tracks(comparison_results, k, higher_Euclidean)
+        output_ids_Euclidean = {t.track_id for t in output_Euclidean}
+
+
+        expected_output_Cosine = [self.trackCollab, self.track7, self.track6, self.track5, self.track4]
+        expected_output_Euclidean = [self.track1, self.track2, self.track3, self.track4, self.track5]
+        expected_ids_Cosine = {t.track_id for t in expected_output_Cosine}
+        expected_ids_Euclidean = {t.track_id for t in expected_output_Euclidean}
+
+        self.assertEqual(len(output_Cosine), k)     # no: of elements in output is k
+        self.assertTrue(expected_ids_Cosine.issubset(output_ids_Cosine))        # expected_ids are in output ids
+        self.assertIsInstance(output_Cosine[0], Track)      # of Track instance
+
+        self.assertTrue(expected_ids_Euclidean.issubset(output_ids_Euclidean))      # expected_ids are in output ids
+
+    # test if recommend_euclidean_topk returns correct data
+    def test_recommend_Euclidean_topk_returns_correct(self):
+              
+        input_track_ids = ["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"]
+        input_preferences = {
+            "energy_weight" : 1.0,
+            "tempo_weight" : 1.2
+        }
+        k = 4
+
+        recommended = recommend_Euclidean_topk(input_track_ids, input_preferences, k = k)       # k value is given
+        recommended_ids = {t.track_id for t in recommended}
+
+        self.assertIsInstance(recommended, list)        # the returned data is list
+        self.assertEqual (len(recommended), k)  # len of returned list is k 
+
+        self.assertEqual(len(set(recommended_ids)), len(recommended_ids)) # no duplicate
+        
+        # elements of the returned list are Track instance
+        for t in recommended:
+            self.assertIsInstance(t, Track)
+
+        # no input tracks  
+        for id in input_track_ids:
+            self.assertNotIn(id, recommended_ids)
+
+        recommended1 = recommend_Euclidean_topk(input_track_ids, input_preferences)     # no k value given
+        self.assertIsInstance(recommended1, list)
+        self.assertEqual(len(recommended1), 1)              
+
+        
+    ###################Cosine ######################
+
+    # test if recommend_cosine_topk returns correct data
+    def test_recommend_Cosine_topk_returns_correct(self):
+              
+        input_track_ids = ["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"]
+        input_preferences = {
+            "energy_weight" : 1.0,
+            "tempo_weight" : 1.2
+        }
+        k = 4
+
+        recommended = recommend_Cosine_topk(input_track_ids, input_preferences, k = k)       # k value is given
+        recommended_ids = {t.track_id for t in recommended}
+
+        self.assertIsInstance(recommended, list)        # the returned data is list
+        self.assertEqual (len(recommended), k)  # len of returned list is k 
+
+        self.assertEqual(len(set(recommended_ids)), len(recommended_ids)) # no duplicates
+
+        # elements of the returned list are Track instance
+        for t in recommended:
+            self.assertIsInstance(t, Track)
+
+        # no input tracks  
+        for id in input_track_ids:
+            self.assertNotIn(id, recommended_ids)
+
+        # one track recommendation 
+        recommended1 = recommend_Cosine_topk(input_track_ids, input_preferences)     # no k value given
+        self.assertIsInstance(recommended1, list)
+        self.assertEqual(len(recommended1), 1) 
+
+
+    ###################random by artist ##############
+    def test_get_artist_frequency_ranking_returns_correct(self):
+        artist_freq = Counter({'a': 1, 'b': 2, 'c': 4, 'd': 2})
+        ranking_list = get_artist_frequency_ranking(artist_freq)
+        
+        self.assertEqual(type(ranking_list), list)
+        self.assertEqual(ranking_list, [('c',4),('b',2),('d',2),('a',1)])
+
+
+
+    # test if get_list_of_random_track_rows_of_chosen_artist returns correct data
+    def test_get_list_of_random_track_rows_of_chosen_artist_returns_correct(self):
+        chosen_artist_id = '7bp2lSdh12wcA8LyB1srfJ'     #Sofia Carson # artist 2 > songs : track 4, 7, collab
+        input_track_ids = ['pqrstuvabcklmnodefghij']        #track 4
+        recommended_tracks = [self.track7]         #track 7
+        list_of_tracks = get_list_of_random_track_rows_of_chosen_artist(chosen_artist_id, input_track_ids,recommended_tracks)
+        expected_tracks = [self.trackCollab]       
+        
+        self.assertEqual(type(list_of_tracks), list)        # return type : list
+        self.assertIsInstance(list_of_tracks[0], Track)     #list's element : Track
+        self.assertEqual(len(list_of_tracks), 1)        # there are 3 tracks by the chosen_artist_id in the setup, so, the returned list should have 1 element (excluding the one input track and one recommended track)
+        self.assertIn(expected_tracks[0], list_of_tracks)       # expected tracks are in the retured list of tracks
+        self.assertNotIn(self.track4, list_of_tracks)       # input not in result
+        self.assertNotIn(self.track7, list_of_tracks)       #track in recommended_tracks not in result
+
+    # test if add_tracks_to_recommended_tracks_list returns correct
+    def test_add_tracks_to_recommended_tracks_list_returns_correct(self):
+        tracks = [self.track4, self.track7]
+        recommended_tracks = [self.trackCollab, self.track1]
+        k = 3
+        self.assertEqual(len(recommended_tracks), 2)        # originally recommended_tracks has 2 tracks
+        
+        result = add_tracks_to_recommended_tracks_list(tracks, recommended_tracks, k)
+
+        self.assertEqual(len(result), 3)        #output has 3 tracks
+        self.assertIn(tracks[0], result)        # first element of tracks is in result now
+
+    # test if get_non_repeating_random_tracks returns correct
+    def test_get_non_repeating_random_tracks_returns_correct(self):
+        # total track declared in this class => 1 to 7 tracks + 2 others (trackCollab, trackNoLink)
+        input_tracks_id = [self.track1.track_id, self.track2.track_id, self.track3.track_id]        # 3 tracks
+        recommended_tracks = [self.track4, self.track5, self.track6]        # 3 tracks
+        result = get_non_repeating_random_tracks(input_tracks_id, recommended_tracks)          # should get 3 other tracks (7, trackCollab, trackNoLink)
+
+        self.assertEqual(len(result), 3)        #3 tracks
+        self.assertIsInstance(result[0], Track)     #elements are of Track
+        #  3 tracks should be in result  
+        self.assertIn(self.track7, result)
+        self.assertIn(self.trackCollab, result)
+        self.assertIn(self.trackNoLink, result)
+
+    # test if recommend_random_by_artist works correctly
+    def test_recommend_random_by_artist_topk(self):
+        # artist1 has 4 songs, artist2  has 3 songs, artist3 and artist4 has 1 song each + 1 track has no artist. (artist1 and 2 have once common song.)
+        input_track_ids = [self.track4.track_id, self.track1.track_id, self.track2.track_id]    # track 1 and 2 are of artist1, track 4 is of the artist2.
+        # with input defined like this, artist1's other 2 songs, artist2's other 2 songs, should be in the output. Since they have 1 common song, it will be 3 songs eligible for recommendation. 
+        # k will be set to 4. and therefore, 3 songs of artist1 and 2 and 1 song from any other tracks are included in the output.
+        k = 4
+        output = recommend_random_by_artist_topk(input_track_ids, k=k)
+
+        self.assertEqual(len(output), k)        # length of output is equal to k 
+        self.assertIsInstance(output[0], Track)     #element is Track instance
+
+        # 3 tracks + 1 from the other 2 tracks should be in output
+        self.assertIn(self.track3, output)
+        self.assertIn(self.track7, output)
+        self.assertIn(self.trackCollab, output)
+        self.assertIn(output[3], [self.track5, self.track6, self.trackNoLink])
+
+        # input not included in output
+        self.assertNotIn(self.track4, output)
+        self.assertNotIn(self.track1, output)
+        self.assertNotIn(self.track2, output)
+
+        # no duplicates
+        track_ids = [t.track_id for t in output]
+        self.assertEqual(len(track_ids), len(set(track_ids)))
+
+        output1 = recommend_random_by_artist_topk(input_track_ids)
+        self.assertEqual(len(output1), 1)
+        expected_outputs = [self.track3, self.trackCollab]
+        self.assertIn(output1[0], expected_outputs)
+        self.assertIsInstance(output[0], Track)
 
 # serializer test
 class recommendTrackIdSerializerTest(APITestCase):
