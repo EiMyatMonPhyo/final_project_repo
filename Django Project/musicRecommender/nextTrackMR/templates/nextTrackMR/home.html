@@ -1,0 +1,158 @@
+{% load static %}
+
+<html>
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Next Track : Music Recommender System</title>
+        <link rel="stylesheet" type="text/css" href="{% static 'css/home.css' %}">
+    </head>
+    <body>
+        <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+        
+        <!-- whole screen -->
+        <div id="whole-screen"> 
+            <div id="left-side-section">
+                
+                <!-- search bar -->
+                <form id="search-bar"  method="get" action="/search_tracks/">
+                    <input class="search-bar-input" type="text" name="q" placeholder="Search tracks ... " value="{{ request.GET.q}}">
+                    <button class="search-bar-btn" type="submit">Search</button>
+                </form>
+            
+                <!-- display all available tracks -->
+                <div id="all-tracks-section">
+                    <div id="all-tracks-title">
+                        {% if request.GET.q %}
+                            <h2>Your Search Results</h2>
+                            <!-- Show reset button only if there is a search query -->
+                            <a href="/" id="reset-tracks-btn">Show All Tracks</a>
+                        {% else %}
+                            <h2>All Tracks</h2>
+                    {% endif %}
+                    </div>
+                    <div class="scrollable-list-container">
+                        {% for track in all_tracks %}
+                            <div class="music-info-container">
+                                <div class="music-info">
+                                    <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}</button></p>
+                                    <p>
+                                    {% for artist in track.artist_set.all %}
+                                        {{ artist.artist_name }}
+                                        {% if not forloop.last %}
+                                            , 
+                                        {% endif %}
+                                    {% endfor %}
+                                    </p>
+                                </div>
+                                <div class="music-info-btn-container">
+                                    <!-- add btn -->
+                                    <button class="music-info-btn" onclick="window.location.href='/add_to_inputs/{{ track.track_id }}/'">Add</button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <iframe id="music-player" src="https://open.spotify.com/embed/track/{{recommended_track.trackId}}"  frameborder="0" ></iframe>
+            </div>
+            
+            <!-- right side -->
+            <div id="right-side-section">
+                <!-- selected tracks -->
+                <div id="playlist-section">
+                    <h2>Your playlist</h2>
+                    <div class="scrollable-list-container">
+                        {% for track in input_tracks %}
+                        <div class="music-info-container">
+                            <div class="music-info" style="width: 85%">
+                                <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}</button></p>
+                                <p>
+                                {% for artist in track.artist_set.all %}
+                                    {{ artist.artist_name }}
+                                    {% if not forloop.last %}
+                                        , 
+                                    {% endif %}
+                                {% endfor %}
+                                </p>
+                            </div>
+                            <div class="music-info-btn-container" >
+                                <!-- add btn -->
+                                <button class="music-info-btn" onclick="window.location.href='/remove_from_inputs/{{ track.track_id }}/'">Remove</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+
+                <!-- div for input user preference -->
+                <div id="pref-rec-btn-container">
+                    <form action="/update_preference/" method="POST" id="preferences-container">
+                        {% csrf_token %}
+
+                        <!-- Energy drop down -->
+                        <div class="preference-container">
+                            <label for="energy_weight" class="preference-label">Energy</label>
+                            <select name="energy_weight" class="drop-down-box" onchange="this.form.submit()">
+                                <option value="High" {% if preferences.energy_weight == 1.2 %}selected {% endif %}>HIGH</option>
+                                <option value="Medium" {% if preferences.energy_weight == 1.0 %}selected {% endif %}>MEDIUM</option>
+                                <option value="Low" {% if preferences.energy_weight == 0.8 %}selected {% endif %}>LOW</option>
+                            </select>
+                        </div>
+
+                        <!-- Tempo drop down -->
+                        <div class="preference-container">
+                            <label for="tempo_weight" class="preference-label">Tempo</label>
+                            <select name="tempo_weight"  class="drop-down-box" onchange="this.form.submit()">
+                                <option value="High" {% if preferences.tempo_weight == 1.2 %}selected {% endif %}>HIGH</option>
+                                <option value="Medium" {% if preferences.tempo_weight == 1.0 %}selected {% endif %}>MEDIUM</option>
+                                <option value="Low" {% if preferences.tempo_weight == 0.8 %}selected {% endif %}>LOW</option>
+                            </select>
+                        </div>
+
+                    </form>
+
+                    <!-- recommend btn -->
+                    <button onclick="window.location.href='/recommend'" id="recommend-btn">Recommend</button>
+
+                </div>
+                
+                <!-- horizontal line -->
+                <hr>
+
+                <!-- div for displaying recommendation -->
+                <div id="recommendation-display-container">  
+                    <h2>Recommendation</h2>
+                    {% if recommended_track %}
+
+                    <!-- track details -->
+                    <div id="recom-track-detail-container">
+                        <p class="track-detail-text"><span class="track-title-text">{{recommended_track.trackName}}</span> <br> by
+                            <span class="artist-name-text">
+                            {% for artist in recommended_track.artists %}
+                                {{ artist }} 
+                                {% if not forloop.last %}
+                                ,
+                                {% endif %}
+                            {% endfor %}
+                            </span>
+                        </p>
+                        <p>Click to Listen on Spotify
+                            <a style="overflow-wrap: break-word;" href="https://open.spotify.com/track/{{recommended_track.trackId}}">https://open.spotify.com/track/{{recommended_track.trackId}}</a>
+                        </p>
+                    </div>  
+                        
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function playTrack(trackId) {
+                let music_player = document.getElementById('music-player');
+                music_player.src = `https://open.spotify.com/embed/track/${trackId}`;
+            }
+        </script>
+        
+    </body>
+</html>
