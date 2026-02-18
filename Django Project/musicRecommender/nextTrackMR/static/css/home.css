@@ -16,6 +16,8 @@
         margin: 5px;
     }
 
+    
+
     #whole-screen {
         display: flex;
         flex-direction: row;
@@ -139,6 +141,12 @@
 
     .music-info-btn-container {
         width: 20%;
+    }
+
+    .msg-text {
+        font-size: 20px; 
+        font-weight: bold; 
+        color: #0D1B2A;
     }
 
     #playlist-section .music-info-btn-container{
@@ -284,9 +292,13 @@
         background-color: #E0E1DD;
         width: 50%;
         align-self: center;
-        justify-content: center;
         border-radius: 20px;
-        padding: 0 10px;    
+        padding: 15px 20px;  
+        min-height: 120px;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     .track-detail-text {
@@ -303,7 +315,9 @@
     }
 
 
-    @media (max-width: 1080px) {
+
+
+@media (max-width: 1080px) {
         #whole-screen {
             flex-direction: column;
             height: auto;
