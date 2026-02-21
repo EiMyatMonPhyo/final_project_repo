@@ -6,7 +6,7 @@ from rest_framework import status
 from .models import *
 from .serializers import *
 
-from .recommenderLogic import recommend_Euclidean, recommend_Cosine, recommend_Euclidean_topk, recommend_Cosine_topk, recommend_random_by_artist_topk, recommend_random_topk
+from .recommenderLogic import recommend_Euclidean, recommend_Euclidean_topk, recommend_Cosine_topk, recommend_random_by_artist_topk, recommend_random_topk
 
 # Main model : Euclidean
 @api_view(['POST'])
@@ -55,7 +55,7 @@ def recommendTrackIdCosine(request):
 
 # baseline : random by artist
 @api_view(['POST'])
-def recommendTrackIdRandom(request):
+def recommendTrackIdRandomByArtist(request):
     k = int(request.query_params.get("k", 1))       #getting k for evaluation to be passed to recommender logic (1 for no pararms passed. k if param is passed)
     serializer = RecommenderInputSerializer(data=request.data)
 
@@ -76,7 +76,7 @@ def recommendTrackIdRandom(request):
 
 # baseline : random 
 @api_view(['POST'])
-def recommendTrackIdRandom1(request):
+def recommendTrackIdRandom(request):
     k = int(request.query_params.get("k", 1))       #getting k for evaluation to be passed to recommender logic (1 for no pararms passed. k if param is passed)
     serializer = RecommenderInputSerializer(data=request.data)
 

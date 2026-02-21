@@ -207,18 +207,19 @@ class recommenderLogicTest(TestCase):
         expectedResult = 6 / (np.sqrt(3) * np.sqrt(14))
         self.assertAlmostEqual(result, expectedResult)
 
-    # test if the closest to 1 index is returned and 
-    # distances less than -1 are considered invalid and raise error
-    def test_get_closest_to_one_index_returns_correct_index(self):
-        distances = [-1.1, -1.0, 0, 0.1, 0.12]
-        result = get_closest_to_one_index(distances)
+    #######################deleted code test #############################
+    # # test if the closest to 1 index is returned and 
+    # # distances less than -1 are considered invalid and raise error
+    # def test_get_closest_to_one_index_returns_correct_index(self):
+    #     distances = [-1.1, -1.0, 0, 0.1, 0.12]
+    #     result = get_closest_to_one_index(distances)
        
-        self.assertEqual(result, 4)
+    #     self.assertEqual(result, 4)
 
 
-        wrong_distances = [-1.1, -1.5]
-        with self.assertRaises(ValueError):
-            result1 = get_closest_to_one_index(wrong_distances)
+    #     wrong_distances = [-1.1, -1.5]
+    #     with self.assertRaises(ValueError):
+    #         result1 = get_closest_to_one_index(wrong_distances)
 
     # test if the cosine recommender logic returns track instance
     def test_recommend_Cosine_returns_track(self):
@@ -272,92 +273,98 @@ class recommenderLogicTest(TestCase):
         self.assertEqual(artist_freq, {'abc' : 3, 'def': 1})
         self.assertEqual(type(artist_freq), Counter)        # returned type is Counter
 
-    # test if the correct maximum value is returned 
-    def test_get_max_freq_of_artist_returns_correct_max(self):
-        artist_freq = get_artist_id_freq(['abc', 'abc', 'def', 'abc'])      
-        max_freq = get_max_freq_of_artist(artist_freq)
+    ############deleted code test##################
+    # # test if the correct maximum value is returned 
+    # def test_get_max_freq_of_artist_returns_correct_max(self):
+    #     artist_freq = get_artist_id_freq(['abc', 'abc', 'def', 'abc'])      
+    #     max_freq = get_max_freq_of_artist(artist_freq)
 
-        artist_freq1 = get_artist_id_freq(['abc', 'abc', 'def', 'def'])     # two same freq
-        max_freq1 = get_max_freq_of_artist(artist_freq1)
+    #     artist_freq1 = get_artist_id_freq(['abc', 'abc', 'def', 'def'])     # two same freq
+    #     max_freq1 = get_max_freq_of_artist(artist_freq1)
 
-        artist_freq2 = get_artist_id_freq(['abc'])     # only one input artist id
-        max_freq2 = get_max_freq_of_artist(artist_freq2)
+    #     artist_freq2 = get_artist_id_freq(['abc'])     # only one input artist id
+    #     max_freq2 = get_max_freq_of_artist(artist_freq2)
         
-        artist_freq3 = get_artist_id_freq([])     # no input artist id
-        max_freq3 = get_max_freq_of_artist(artist_freq3)
+    #     artist_freq3 = get_artist_id_freq([])     # no input artist id
+    #     max_freq3 = get_max_freq_of_artist(artist_freq3)
 
-        self.assertEqual(max_freq, 3)
-        self.assertEqual(max_freq1, 2)
-        self.assertEqual(max_freq2, 1)
-        self.assertEqual(max_freq3, 0)
+    #     self.assertEqual(max_freq, 3)
+    #     self.assertEqual(max_freq1, 2)
+    #     self.assertEqual(max_freq2, 1)
+    #     self.assertEqual(max_freq3, 0)
 
-    # test if the correct list of most frequent artist ids is returned
-    def test_get_most_frequent_artists_returns_correct(self):
-        artist_ids = ['abc', 'abc', 'def', 'def']
-        artist_freq = get_artist_id_freq(artist_ids)     
-        max_freq = get_max_freq_of_artist(artist_freq)
+    ############deleted code test##################
+    # # test if the correct list of most frequent artist ids is returned
+    # def test_get_most_frequent_artists_returns_correct(self):
+    #     artist_ids = ['abc', 'abc', 'def', 'def']
+    #     artist_freq = get_artist_id_freq(artist_ids)     
+    #     max_freq = get_max_freq_of_artist(artist_freq)
 
-        artist_ids1 = ['abc', 'abc', 'abc', 'def']
-        artist_freq1 = get_artist_id_freq(artist_ids1)     
-        max_freq1 = get_max_freq_of_artist(artist_freq1)
+    #     artist_ids1 = ['abc', 'abc', 'abc', 'def']
+    #     artist_freq1 = get_artist_id_freq(artist_ids1)     
+    #     max_freq1 = get_max_freq_of_artist(artist_freq1)
 
-        artist_ids2 = ['abc']
-        artist_freq2 = get_artist_id_freq(artist_ids2)     
-        max_freq2 = get_max_freq_of_artist(artist_freq2)
+    #     artist_ids2 = ['abc']
+    #     artist_freq2 = get_artist_id_freq(artist_ids2)     
+    #     max_freq2 = get_max_freq_of_artist(artist_freq2)
 
-        artist_ids3 = []
-        artist_freq3 = get_artist_id_freq(artist_ids3)     
-        max_freq3 = get_max_freq_of_artist(artist_freq3)
+    #     artist_ids3 = []
+    #     artist_freq3 = get_artist_id_freq(artist_ids3)     
+    #     max_freq3 = get_max_freq_of_artist(artist_freq3)
 
-        top_artists = get_most_frequent_artists(artist_ids, artist_freq, max_freq)
-        top_artists1 = get_most_frequent_artists(artist_ids1, artist_freq1, max_freq1)
-        top_artists2 = get_most_frequent_artists(artist_ids2, artist_freq2, max_freq2)
-        top_artists3 = get_most_frequent_artists(artist_ids3, artist_freq3, max_freq3)
+    #     top_artists = get_most_frequent_artists(artist_ids, artist_freq, max_freq)
+    #     top_artists1 = get_most_frequent_artists(artist_ids1, artist_freq1, max_freq1)
+    #     top_artists2 = get_most_frequent_artists(artist_ids2, artist_freq2, max_freq2)
+    #     top_artists3 = get_most_frequent_artists(artist_ids3, artist_freq3, max_freq3)
 
-        self.assertEqual(len(top_artists), 2)
-        self.assertEqual(top_artists, ['abc','def'])
-        self.assertEqual(len(top_artists1), 1)
-        self.assertEqual(top_artists1, ['abc'])
-        self.assertEqual(len(top_artists2), 1)
-        self.assertEqual(top_artists2, ['abc'])
-        self.assertEqual(top_artists3, None)
+    #     self.assertEqual(len(top_artists), 2)
+    #     self.assertEqual(top_artists, ['abc','def'])
+    #     self.assertEqual(len(top_artists1), 1)
+    #     self.assertEqual(top_artists1, ['abc'])
+    #     self.assertEqual(len(top_artists2), 1)
+    #     self.assertEqual(top_artists2, ['abc'])
+    #     self.assertEqual(top_artists3, None)
     
-    # test if get_random_track_row_of_chosen_artist returns correct random track if input are valid 
-    def test_get_random_track_row_of_chosen_artist_returns_correct(self):
-        chosen_artists = '6sCbFbEjbYepqswM1vWjjs'
-        input_tracks = ['1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv']
-        random_track = get_random_track_row_of_chosen_artist(chosen_artists, input_tracks)
+    ############deleted code test##################
+    # # test if get_random_track_row_of_chosen_artist returns correct random track if input are valid 
+    # def test_get_random_track_row_of_chosen_artist_returns_correct(self):
+    #     chosen_artists = '6sCbFbEjbYepqswM1vWjjs'
+    #     input_tracks = ['1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv']
+    #     random_track = get_random_track_row_of_chosen_artist(chosen_artists, input_tracks)
         
-        self.assertIn (random_track, [self.track1, self.track3, self.trackCollab])        # track 1,3, collab
-        self.assertNotIn(random_track, [self.track2, self.track4, self.track5, self.track6, self.track7, self.trackNoLink])      # 2,4,5,6,7,notracklink
+    #     self.assertIn (random_track, [self.track1, self.track3, self.trackCollab])        # track 1,3, collab
+    #     self.assertNotIn(random_track, [self.track2, self.track4, self.track5, self.track6, self.track7, self.trackNoLink])      # 2,4,5,6,7,notracklink
     
-    #  test if get_random_track_row_of_chosen_artist returns None if input are invalid
-    def test_get_random_track_row_of_chosen_artist_returns_none(self):
-        chosen_artists = ''
-        input_tracks = ['1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv']
+    ############deleted code test##################
+    # #  test if get_random_track_row_of_chosen_artist returns None if input are invalid
+    # def test_get_random_track_row_of_chosen_artist_returns_none(self):
+    #     chosen_artists = ''
+    #     input_tracks = ['1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv']
         
         
-        with self.assertRaises(ValueError):
-            get_random_track_row_of_chosen_artist(chosen_artists, input_tracks)
+    #     with self.assertRaises(ValueError):
+    #         get_random_track_row_of_chosen_artist(chosen_artists, input_tracks)
+    
+    ############deleted code test##################
+    # # test if get_any_random_track returns a random track object (but not the tracks in input list of track ids)
+    # def test_get_any_random_track_returns_correct(self):
+    #     # the list of all tracks in the temporary database without the only track id '744ZuzjXQmoJmOdk2I1ym9'
+    #     input_tracks = ['4qEoqyPbLYnLOii6mKlIjI', '5lz0NiPw32Gq4kMIUJvuw2', '1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv', 'pqrstuvabcklmnodefghij', 'klmnopqrstuvabcdefghij', 'uvabcklmnopqrstdefghij', 'uvabcklefghijmnopqrstd']
+    #     expected_track = '744ZuzjXQmoJmOdk2I1ym9'       # the only track id not included in input_tracks list
+    #     random_track = get_any_random_track(input_tracks)
         
-    # test if get_any_random_track returns a random track object (but not the tracks in input list of track ids)
-    def test_get_any_random_track_returns_correct(self):
-        # the list of all tracks in the temporary database without the only track id '744ZuzjXQmoJmOdk2I1ym9'
-        input_tracks = ['4qEoqyPbLYnLOii6mKlIjI', '5lz0NiPw32Gq4kMIUJvuw2', '1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv', 'pqrstuvabcklmnodefghij', 'klmnopqrstuvabcdefghij', 'uvabcklmnopqrstdefghij', 'uvabcklefghijmnopqrstd']
-        expected_track = '744ZuzjXQmoJmOdk2I1ym9'       # the only track id not included in input_tracks list
-        random_track = get_any_random_track(input_tracks)
-        
-        self.assertIsInstance(random_track, Track)
-        self.assertEqual(random_track.track_id, expected_track)
+    #     self.assertIsInstance(random_track, Track)
+    #     self.assertEqual(random_track.track_id, expected_track)
 
-        with self.assertRaises(ValueError):     # for None case (no more tracks to be selected from the database)
-            get_any_random_track(input_tracks + [expected_track])
+    #     with self.assertRaises(ValueError):     # for None case (no more tracks to be selected from the database)
+    #         get_any_random_track(input_tracks + [expected_track])
 
-    # test if random by artist model returns a track object
-    def test_recommend_random_by_artist_returns_track(self):
-        input_tracks = ['744ZuzjXQmoJmOdk2I1ym9', 'uvabcklmnopqrstdefghij', '1rM0CnyUiiw6A9CHJRXjZA']
+    ############deleted code test##################
+    # # test if random by artist model returns a track object
+    # def test_recommend_random_by_artist_returns_track(self):
+    #     input_tracks = ['744ZuzjXQmoJmOdk2I1ym9', 'uvabcklmnopqrstdefghij', '1rM0CnyUiiw6A9CHJRXjZA']
         
-        result = recommend_random_by_artist(input_tracks)
+    #     result = recommend_random_by_artist(input_tracks)
 
     ################top k - testing#################
     ###################Euclidean ###################
