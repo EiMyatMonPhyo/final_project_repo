@@ -80,8 +80,12 @@ def addTrack(request, track_id):
     if 'input_tracks' not in request.session: 
         request.session['input_tracks'] = []       #set empty list if session variable 'input_tracks' is defined yet
     
-    request.session['input_tracks'].append(track_id)        # add to input_tracks
-    request.session.modified = True
+    # eligible track ids to add
+    
+    # if the track id is in Track table, and is not included in input_tracks list 
+    if Track.objects.filter(track_id = track_id).exists() and track_id not in request.session['input_tracks']:
+        request.session['input_tracks'].append(track_id)        # add to input_tracks
+        request.session.modified = True
 
     print (request.session['input_tracks'])
     return redirect(request.META.get('HTTP_REFERER', '/'))

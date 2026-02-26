@@ -175,17 +175,71 @@ def recommend_Euclidean(input_track_ids, input_preferences):
 """
     input : comparison_results (list of tuples (Track obj, its comparison result), k value(amount of recommendations), higher (higher to lower order[Cosine] or lower to higher order[Euclidean]))
     output : a list of recommended tracks by the model
-    function : sort the comparison results (descending (higher to lower where higher : True) : 10 to 1 & ascending (lower to higher where higher : False)), 
+    function : sort the comparison results in descending order (descending (higher to lower where higher : True) : 10 to 1 & ascending (lower to higher where higher : False)), 
                 take k (if k is greater than the available tracks in db, just take only the amount of exisitng available numbers of tracks)
                 find the top 10 tracks obj from the sorted comparison_results list
                 return that list of top 10
 """
 # top 10 track objects
-def get_top_tracks(comparison_results, k, higher):
-    comparison_results.sort(key=lambda x: x[1], reverse=higher)
+def get_top_tracks(comparison_results, k, higher=True):
+    comparison_results.sort(key=lambda x: x[1], reverse=higher)       # sort it in descending order
     k = min(k, len(comparison_results))     # rare but just incase, the number of comparison results (number of availble tracks) is less then k
     top_k_tracks = [comparison_results[i][0] for i in range(k)] # ith tuple's 0 index (track obj)
     return top_k_tracks
+
+
+"""
+    input : all_dist_scores (the list of all tracks' similarity scores)
+    output: the list of normalized scores
+    function : apply min-max normalization to input list
+"""
+def normalize_Euclidean(all_dist_scores):
+    maximum = max(all_dist_scores)
+    minimum = min(all_dist_scores)
+    norm_scores_list = []
+    print ("all dist scores length: ", len(all_dist_scores))
+    for score in all_dist_scores:
+        if maximum == minimum:
+            norm_scores_list.append(1.0)
+        else: 
+            min_max = (score - minimum)/ (maximum - minimum)            # use min-max normalization formula
+            norm_scores_list.append(1-min_max)      # since the smaller euclidean score, the better, applying (1 - min-max) mean larger euclidean will have smaller reward & smaller euclidean will have larger reward.
+    print ("check if normalized scores has same length as all_dist_scores :", len(norm_scores_list))
+    return norm_scores_list
+
+
+
+"""
+    input : candidate artists (a list of candidate track's artists), input_artists_frequency (a Counter obj/ dict of artist id as key and its frequency as value)
+    output : candidate score (how many of input artists are matched?)
+    function : for each candidate artist, if matching artist is in input_tracks, reward that artist based on artist frequency in input artists. return how many of input artists are matched 
+"""
+# reward the track with matching artists
+def reward_track_by_matching_artists(candidate_artists, input_artists_frequency):
+    score = 0
+    # for every artist in candidate_artists list, 
+    for candidate_artist in candidate_artists:
+        # check the frequency in input_artists_frequency, 
+        if candidate_artist in input_artists_frequency:
+            #if the artist is in input_artists_frequency, the artist appears in input_artists, so reward that based on its frequency
+            score += input_artists_frequency[candidate_artist] 
+            # print (candidate_artist, 'is in input_tracks artists')
+    # score here : the number of input artists matched by candidate artists
+    # print ("number of input artists matched by candidate artists : ", score)
+
+    # the number of input tracks artists
+    if not input_artists_frequency:
+        return 0
+    sum_of_all_freq = sum(input_artists_frequency.values())
+    
+    # handling rare edge case, (denominator to be non zero)
+    if sum_of_all_freq == 0:
+        return 0
+    
+    # number of matching artists / number of all input artists = (how many of input artists are matched)
+    score_by_candidate_artist = score/sum_of_all_freq
+    return score_by_candidate_artist
+
 
 
 ################### Euclidean model related (Used in api.py)############################
@@ -198,8 +252,14 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences, k = 1):
     # for null input preferences 
     if input_preferences is None:
         input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
+    
+    #list of artist ids of every input tracks (for artist similarity)
+    artist_ids = get_artist_ids_list(input_track_ids)
 
-    ########## recommender logic (Euclidean) ##############
+    
+    # get the artist ids and their corresponding frequency    
+    artist_frequency = get_artist_id_freq(artist_ids)
+
 
     # find finalized vectors of the input track ids in the database
     input_vectors = get_track_vectors_from_database(input_track_ids)
@@ -221,15 +281,35 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences, k = 1):
     
     # get the list of distances between each valid song and target vector
     comparison_results = []     # comparison results to be stored in this array
+    
+    euclidean_scores = [] # euclidean scores to be stored in this list, (needed to normalize with min-max normalization)
     # for every track (excluding the ones the user inputs), check the similarity with Euclidean
     for t in all_tracks:        
         vector = t.finalized_vector     # vector of the current track of the database
         euclidean = calculate_Euclidean(target_vector, np.array(json.loads(vector)))
-        comparison_results.append((t, euclidean))        # store to the array
-    # print (comparison_results)
+        euclidean_scores.append(euclidean)
 
-    higher = False
-    top_tracks = get_top_tracks(comparison_results, k, higher)
+    # normalization of euclidean scores
+    normalized_E_scores = normalize_Euclidean(euclidean_scores)
+
+    for index, t in enumerate(all_tracks):    
+        normalized_euclidean =  normalized_E_scores[index]       
+        # calculate artist similarity
+        # get list of candidate artist ids
+        links = TrackArtistLink.objects.filter(track= t)        # link table objects
+        candidate_artists = list(links.values_list('artist_id', flat=True))     #candidate artist ids in a list
+        artist_score = reward_track_by_matching_artists(candidate_artists, artist_frequency)       # get artist score
+
+        euclidean_weight = 0.55        # (80%)
+        artist_weight = 0.45        # (20%)
+        final_score = normalized_euclidean * euclidean_weight + artist_score * artist_weight
+
+
+        comparison_results.append((t, final_score))        # store to the array
+    print (comparison_results)
+
+
+    top_tracks = get_top_tracks(comparison_results, k)
 
     return top_tracks
 
@@ -255,10 +335,18 @@ def recommend_Cosine_topk(input_track_ids, input_preferences, k=1):
     if not input_track_ids:
         raise ValueError("No input tracks provided")
     
+
     # for null input preferences 
     if input_preferences is None:
         input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
 
+
+    #list of artist ids of every input tracks (for artist similarity)
+    artist_ids = get_artist_ids_list(input_track_ids)
+
+    
+    # get the artist ids and their corresponding frequency    
+    artist_frequency = get_artist_id_freq(artist_ids)
 
 
     # find finalized vectors of the input track ids in the database
@@ -288,17 +376,28 @@ def recommend_Cosine_topk(input_track_ids, input_preferences, k=1):
     # get the list of distances between each valid song and target vector
     comparison_results = []     # comparison results to be stored in this array
     # for every track (excluding the ones the user inputs), check the similarity with Euclidean
-    for t in all_tracks:        
+    for t in all_tracks:    
+        # calculate cosine similarity
         vector = t.finalized_vector     # vector of the current track of the database
         cosine = calculate_Cosine(target_vector, np.array(json.loads(vector)))
-        comparison_results.append((t,cosine))        # store (track_id, its result) tuple to the array
 
-    higher = True
+        # calculate artist similarity
+        # get list of candidate artist ids
+        links = TrackArtistLink.objects.filter(track= t)        # link table objects
+        candidate_artists = list(links.values_list('artist_id', flat=True))     #candidate artist ids in a list
+        artist_score = reward_track_by_matching_artists(candidate_artists, artist_frequency)       # get artist score
+
+        cosine_weight = 0.55        # (80%)
+        artist_weight = 0.45       # (20%)
+        final_score = cosine * cosine_weight + artist_score * artist_weight
+
+        comparison_results.append((t,final_score))        # store (track_id, its result) tuple to the array
+
+
     # for evaluation, top 10 tracks will be used, so, here, we will recommend 10 tracks
-    top_tracks = get_top_tracks(comparison_results, k, higher)
+    top_tracks = get_top_tracks(comparison_results, k)
     
     return top_tracks 
-
 
 
 #################### Random by artist model related ############################
@@ -636,37 +735,37 @@ def recommend_random_topk(input_track_ids, k=1):
 #     function : get artist ids of input track ids, find most frequent artist, randomly choose a Track of that most frequent artist, and return that Track obj
 # """
 # # get random Track object of most frequent artist by input tracks list
-# def recommend_random_by_artist(input_track_ids):
+# def recommend_random_by_artist(input_track_ids):  
 
     # for null input tracks
-    if not input_track_ids:
-        raise ValueError("No input tracks provided")
+    # if not input_track_ids:
+    #     raise ValueError("No input tracks provided")
 
-    #list of artist ids of every input tracks
-    artist_ids = get_artist_ids_list(input_track_ids)
+    # #list of artist ids of every input tracks
+    # artist_ids = get_artist_ids_list(input_track_ids)
 
-    # get the artist ids and their corresponding frequency    
-    artist_frequency = get_artist_id_freq(artist_ids)
+    # # get the artist ids and their corresponding frequency    
+    # artist_frequency = get_artist_id_freq(artist_ids)
 
-    # get most occurring artist ids
-    max_frequency = get_max_freq_of_artist(artist_frequency)
+    # # get most occurring artist ids
+    # max_frequency = get_max_freq_of_artist(artist_frequency)
     
-    # get a list of top most occurring artist ids
-    top_artists = get_most_frequent_artists(artist_ids, artist_frequency, max_frequency)     # list to store top occurring artists
+    # # get a list of top most occurring artist ids
+    # top_artists = get_most_frequent_artists(artist_ids, artist_frequency, max_frequency)     # list to store top occurring artists
     
-    if top_artists is not None:
-        # random choice from top_artists
-        chosen_artist_id = random.choice(top_artists)
-        print ("chosen artist id : ", chosen_artist_id) 
-    else: 
-        chosen_artist_id = None
+    # if top_artists is not None:
+    #     # random choice from top_artists
+    #     chosen_artist_id = random.choice(top_artists)
+    #     print ("chosen artist id : ", chosen_artist_id) 
+    # else: 
+    #     chosen_artist_id = None
 
-    if chosen_artist_id is not None:
-        # get a random Track obj (excluding user input tracks) of the chosen artist 
-        track = get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids)
-        if track is None:   # if none is returned then, that means there is no other tracks from the chosen artist, so just choose random track. 
-            track = get_any_random_track(input_track_ids)
-    else:
-        # if no artist is chosen, get any track
-        track = get_any_random_track(input_track_ids)
-    return track
+    # if chosen_artist_id is not None:
+    #     # get a random Track obj (excluding user input tracks) of the chosen artist 
+    #     track = get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids)
+    #     if track is None:   # if none is returned then, that means there is no other tracks from the chosen artist, so just choose random track. 
+    #         track = get_any_random_track(input_track_ids)
+    # else:
+    #     # if no artist is chosen, get any track
+    #     track = get_any_random_track(input_track_ids)
+    # return track

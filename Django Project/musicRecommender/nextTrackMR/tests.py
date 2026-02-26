@@ -221,16 +221,21 @@ class recommenderLogicTest(TestCase):
     #     with self.assertRaises(ValueError):
     #         result1 = get_closest_to_one_index(wrong_distances)
 
-    # test if the cosine recommender logic returns track instance
+    # test if the cosine recommender logic returns list which contains Track objects, works with top k =10 and k=1(default)
     def test_recommend_Cosine_returns_track(self):
         input_tracks = ["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"]
         input_preferences = {
             "energy_weight" : 1.0,
             "tempo_weight" : 1.2
         }
-        result = recommend_Cosine(input_tracks, input_preferences)
+        result = recommend_Cosine_topk(input_tracks, input_preferences)
+        self.assertIsInstance(result, list)     # returned type is list.
+        self.assertTrue(all(isinstance(i, Track) for i in result))        # check if list's elements are Track objects.
+        self.assertTrue(len(result), 1)     # no k defined => 1 track returned
 
-        self.assertIsInstance(result, Track)
+        k = 10
+        result_topk = recommend_Cosine_topk(input_tracks, input_preferences, k)
+        self.assertTrue(len(result_topk), k)        # k =10 , 10 Tracks returned
 
 
 
@@ -850,12 +855,12 @@ class frontendFunctionsTest(TestCase):
         response = self.client.get(reverse('index'))
         
         self.assertEqual(response.status_code, 200)     # check if the url is successful
-        self.assertTemplateUsed(response, 'nextTrackMR/index.html')     # check if the correct template is rendered
+        self.assertTemplateUsed(response, 'nextTrackMR/home.html')     # check if the correct template is rendered
 
     # test if session variables are true and passed to the html file correctly from the index function
     def test_session_vars_are_correct(self):
         sessionVar = self.client.session
-        sessionVar['input_tracks'] = ['abcdefg']
+        sessionVar['input_tracks'] = [self.track1.track_id]
         sessionVar['recommended_track'] = 'Photograph'
         sessionVar['preferences'] = {'energy_weight': "Medium", 'tempo_weight': "Medium"}
 
@@ -864,7 +869,10 @@ class frontendFunctionsTest(TestCase):
         response = self.client.get(reverse('index'))
 
         # test if the session variables and variables passed to HTML are the same (checking for all three sessioin variables)
-        self.assertEqual(response.context['tracks'], sessionVar['input_tracks'])        
+        expected_all_tracks = list(response.context['all_tracks'].values_list('track_id', flat=True))
+        self.assertEqual(expected_all_tracks, [self.track4.track_id, self.trackCollab.track_id])
+        self.assertNotIn(self.track1.track_id, expected_all_tracks)
+        self.assertEqual(list(response.context['input_tracks'].values_list('track_id', flat=True)), sessionVar['input_tracks'])        
         self.assertEqual(response.context['recommended_track'], sessionVar['recommended_track'])
         self.assertEqual(response.context['preferences'], sessionVar['preferences'])
 
@@ -872,37 +880,40 @@ class frontendFunctionsTest(TestCase):
     # testing if the add_to_inputs url does correctly, session variable is created and stores a correct input
     def test_add_track_correct(self):
         add_track_url = '/add_to_inputs/'
-        valid_input_id = '4TSxpQC5oY6XBkUSLPYM6G'
-
-        response = self.client.post(add_track_url, {'input_track_id' : valid_input_id})
+        valid_input_id = self.track1.track_id
+        add_track_url_input_id = add_track_url + valid_input_id +'/'
+        response = self.client.post(add_track_url_input_id)
 
         sessionVar = self.client.session
         self.assertEqual(response.status_code, 302)     #redirected 
         self.assertIn('input_tracks',sessionVar)        #input_tracks session var is created
         self.assertEqual(len(sessionVar['input_tracks']), 1)        #input_tracks session var has one element in it
-        self.assertEqual(sessionVar["input_tracks"][0]['id'], valid_input_id)       # the element in the input_tracks session var is track details related to the input id
+        self.assertEqual(sessionVar["input_tracks"][0], valid_input_id)       # the element in the input_tracks session var is track details related to the input id
 
-    def test_add_track_invalid(self):
-        response = self.client.post('/add_to_inputs/', {})
-
-        self.assertEqual(response.status_code, 302)     # redirecting ok
+    # test if adding non exisitng or already-in-input-lists track does not work.
+    def test_add_invalid_track_is_not_added(self):
 
         sessionVar = self.client.session
-        self.assertIn('input_tracks',sessionVar)        # input_tracks session var is created
-        self.assertEqual(len(sessionVar['input_tracks']), 0)            #input_tracks session var has nothing in it
-        self.assertEqual(sessionVar["input_tracks"], [])            #input_tracks session var is empty list
+        sessionVar['input_tracks'] = [self.track1.track_id, self.track4.track_id]
+        sessionVar.save()
+        
+        self.assertEqual(len(sessionVar['input_tracks']), 2)  
 
-    # test if conver_weight_input function convert correctly
-    def test_convert_weight_input_correct(self):
-        v1 = 'High'
-        v2 = 'Medium'
-        v3 = 'Low'
-        converted1 = convert_weight_input(v1)
-        converted2 = convert_weight_input(v2)
-        converted3 = convert_weight_input(v3)
-        self.assertEqual (converted1, 1.2)
-        self.assertEqual (converted2, 1.0)
-        self.assertEqual (converted3, 0.8)
+        # adding tracks 
+        invalid_track1 = self.track1.track_id       #exists in database, but already in input tracks list
+        invalid_track2 = 'abcdefg'      # non-existing track in database
+        
+        # adding already-in-input-lists track -> so, not added
+        response = self.client.post('/add_to_inputs/' + invalid_track1 + '/')
+        self.assertEqual(response.status_code, 302)     # redirecting ok
+        self.assertEqual(len(sessionVar['input_tracks']), 2)    # same length as defined earlier above
+        self.assertEqual(sessionVar['input_tracks'].count(invalid_track1), 1)          # only one self.track1, the duplicate self.track1 track is not added      
+
+        # adding non-existing track -> so, not added
+        response = self.client.post('/add_to_inputs/' + invalid_track2 + '/')
+        self.assertEqual(response.status_code, 302)     # redirecting ok
+        self.assertEqual(len(sessionVar['input_tracks']), 2)    # same length as defined earlier above
+        self.assertNotIn(invalid_track2, sessionVar['input_tracks'])    # invalid track 2 (non-existing track) is not added.
 
     # testing if updatePreference function is correct?
     def test_update_preference_correct(self):
@@ -914,20 +925,21 @@ class frontendFunctionsTest(TestCase):
         sessionVar = self.client.session
         self.assertEqual(response.status_code, 302)     #redirected 
         self.assertIn('preferences',sessionVar)        #preferences session var is created
-        self.assertEqual(sessionVar['preferences']['energy_weight'], 1.2)        # preferences session var has correct value 1.2 for High value
-        self.assertEqual(sessionVar['preferences']['tempo_weight'], 0.8)       # preferences session var has correct value 0.8 for Low value
+        self.assertEqual(sessionVar['preferences']['energy_weight'], 'High')        # preferences session var has correct value 1.2 for High value
+        self.assertEqual(sessionVar['preferences']['tempo_weight'], 'Low')       # preferences session var has correct value 0.8 for Low value
 
     # testing if removeTrack function works correctly
     def test_remove_track_correct(self):
         # creating fake sessionVar
         sessionVar = self.client.session
-        sessionVar['input_tracks'] = [{'id' : 'abcdefg'}, {'id' : 'hijklmn'},{'id' : 'opqrstu'}]
+        sessionVar['input_tracks'] = ['abcdefg', 'hijklmn', 'opqrstu']
         sessionVar.save()
         
         sessionVar = self.client.session
         
         # test if removing non existing track does not cause any error and remove anything 
-        remove_non_existing_track_url = '/remove_from_inputs/abcdefghijklmnop' 
+        non_existing_track = 'abcdefghijklmnop'
+        remove_non_existing_track_url = '/remove_from_inputs/' + non_existing_track + '/'
         
         response = self.client.post(remove_non_existing_track_url)
         sessionVar = self.client.session
@@ -936,22 +948,14 @@ class frontendFunctionsTest(TestCase):
         self.assertEqual(len(sessionVar['input_tracks']), 3)        # check if length is still the same as created above (3)
 
         remove_track = 'hijklmn'
-        remove_track_url = '/remove_from_inputs/' + remove_track
+        remove_track_url = '/remove_from_inputs/' + remove_track +'/'
         
         response1 = self.client.post(remove_track_url)
         sessionVar = self.client.session
 
         self.assertEqual(response1.status_code, 302)        # check if no error
         self.assertEqual(len(sessionVar['input_tracks']), 2)        # check if one element is removed from the list
-        self.assertNotIn(remove_track, [track['id'] for track in sessionVar['input_tracks']])      # check if the removed element is not in the list 
-
-    # test if get_input_track_id_list returns a list of input track ids, given the track details list
-    def test_get_input_track_id_list_returns_correct(self):
-        list_of_dict = [{'id' : 'a', 'name' : 'name1'}, {'id' : 'b', 'name' : 'name2'}, {'id' : 'c', 'name' : 'name3'}]
-        get_ids = get_input_track_id_list(list_of_dict)
-
-        self.assertEqual(len(list_of_dict), len(get_ids))       # check if the lenght of input and output are the same
-        self.assertEqual(['a','b','c'], get_ids)        # check if the expected ids are in the output
+        self.assertNotIn(remove_track, [track for track in sessionVar['input_tracks']])      # check if the removed element is not in the list 
 
     # test if get_artist_list returns a list of artists of the input track
     def test_get_artist_list_returns_correct(self):
@@ -964,8 +968,8 @@ class frontendFunctionsTest(TestCase):
     def test_recommend_works(self):
         sessionVar = self.client.session
 
-        sessionVar['input_tracks'] = [{'id': self.track1.track_id}, {'id': self.track4.track_id}]
-        sessionVar['preferences'] = {'energy_weight' : 1.0, 'tempo_weight': 1.0}
+        sessionVar['input_tracks'] = [self.track1.track_id, self.track4.track_id]
+        sessionVar['preferences'] = {'energy_weight' : 'Medium', 'tempo_weight': 'Medium'}
         sessionVar.save()
 
         recommend_url = '/recommend/'

@@ -23,3 +23,12 @@ class TrackIdRecommendationSerializer(serializers.ModelSerializer):
 #     "tempo_weight": 1.0
 #   }
 # }
+
+# feedback input sample
+# {
+#   "track_ids": ["5lWFrW5T3JtxVCLDb7etPu", "0ZfM5XfJTtFPhOxAERRnNY"],
+#   "preferences": {
+#     "energy_weight": 0.8,
+#     "tempo_weight": 1.0
+#   }
+# }
