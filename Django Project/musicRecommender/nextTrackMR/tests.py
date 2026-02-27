@@ -1,3 +1,5 @@
+import html
+
 from django.test import TestCase, Client
 from django.urls import reverse
 from rest_framework.test import APITestCase
@@ -136,7 +138,7 @@ class recommenderLogicTest(TestCase):
         vectors = get_track_vectors_from_database(["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"])
         
         self.assertEqual(len(vectors), 2)
-        # self.assertEqual(vectors[0],np.array([0.5914070296041691, 1.075143150051259, 0.29006131076060143, 0.004705690611959099, 0.6274237485220049, 0.0, 1.042063575215305]))
+        # self.assertIn(np.array([0.5914070296041691, 1.075143150051259, 0.29006131076060143, 0.004705690611959099, 0.6274237485220049, 0.0, 1.042063575215305]),vectors)
         
     # test if getting track vectors from database raise error for invalid input
     def test_get_track_vectors_returns_invalid(self):
@@ -164,14 +166,6 @@ class recommenderLogicTest(TestCase):
         result = calculate_Euclidean(np.array([1,2,3]), np.array([1,1,1]))
         self.assertEqual(result, np.sqrt(5))
 
-    # # test if euclidean distances are stored correctly
-    # def test_Euclidean_distance_data_are_correct(self):
-    #     tracks = Track.objects.all()
-    #     target = np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
-
-    #     distances = get_Euclidean_distance(tracks, target)
-    #     self.assertEqual(len(distances), tracks.count()) 
-
     # test if minimum distance index is returned correctly
     def test_get_track_with_minimum_distance_returns_correct_index(self):
         distances = [0.1, 0.3, 0.0, 0.9]
@@ -190,10 +184,77 @@ class recommenderLogicTest(TestCase):
 
         self.assertIsInstance(result, Track)
 
+    # test if get_top_tracks returns correct data
+    def test_get_top_tracks_return_correct(self):
+        comparison_results = [(self.track1, 0.1),(self.track4, 0.4),(self.track7, 0.6),(self.track3, 0.3),
+                              (self.track6, 0.5),(self.track2, 0.2),(self.track5, 0.4),(self.trackCollab, 0.7)]
+        k = 5
+        higher = True # (higher to lower => highest results returned)
 
-    ############### baseline model testing ###############
+        output = get_top_tracks(comparison_results, k, higher)
+        output_ids = {t.track_id for t in output}
 
-    ###### cosine similarity testing ######
+        expected_output = [self.trackCollab, self.track7, self.track6, self.track5, self.track4]
+        expected_ids = {t.track_id for t in expected_output}
+
+        self.assertEqual(len(output), k)     # no: of elements in output is k
+        self.assertTrue(expected_ids.issubset(output_ids))        # expected_ids are in output ids
+        self.assertIsInstance(output[0], Track)      # of Track instance
+        self.assertTrue(type(output), list)         # output is list
+
+    # test if normalize_Euclidean works correctly
+    def test_normalize_euclidean_correct(self):
+        dist_scores = [0, 1.2, 2.4, 2.5]    # normal input
+        #min = 0, max = 2.5, => min-max = [0, 0.48, 0.96, 1] => 1 - [0, 0.48, 0.96, 1] is expected
+        expected = [1, 0.52, 0.04, 0]
+
+        normalized_E = normalize_Euclidean(dist_scores)
+        self.assertEqual(len(normalized_E), len(dist_scores))       # lengths of input and output are same
+        for i, j in zip(normalized_E, expected):        # output is expected
+            self.assertAlmostEqual(i, j)
+
+        same_dists = [2,2,2,2]
+        expected_same_dists = [1,1,1,1]
+        normalized_E_same_dists = normalize_Euclidean(same_dists)
+        self.assertEqual(len(normalized_E_same_dists), len(same_dists))       # lengths of input and output are same  
+        for i, j in zip(normalized_E_same_dists, expected_same_dists):        # output is expected
+            self.assertAlmostEqual(i, j)
+
+        # empty input raise error
+        with self.assertRaises(ValueError):
+            normalize_Euclidean([]) 
+
+    # test if smaller Euclidean distances are bigger after normalized
+    def test_smaller_Euclidean_are_normalized_to_be_bigger_score(self):
+        dist_scores = [1, 5, 10]
+        normalized_E = normalize_Euclidean(dist_scores)
+        self.assertGreater(normalized_E[0], normalized_E[1])
+        self.assertGreater(normalized_E[1], normalized_E[2])
+
+    # test if reward_track_by_matching_artists returns correct score as expected
+    def test_reward_track_by_matching_artists_return_correct(self):
+        frequency = Counter({'a': 3, 'b': 2, 'c': 1}) 
+
+        candidate = ['a', 'c', 'd']     #matching candidate
+        # total = 6, matching : a and c => 4, so result is 4/6
+        expected = 2/3        #expected result
+        reward = reward_track_by_matching_artists(candidate, frequency)
+        self.assertAlmostEqual(reward, expected)
+
+        candidate_no_match = ['d','e']
+        reward_no_match = reward_track_by_matching_artists(candidate_no_match, frequency)
+        self.assertAlmostEqual(0, reward_no_match)
+
+    # tested just in case for edge cases, rare and unlikely to happen
+    def test_reward_track_by_matching_artists_handle_edge_case_correct(self):
+        frequency = Counter({'a': 3, 'b': 2, 'c': 1}) 
+        candidate = ['a', 'c', 'd']
+
+        # in case there is no candidate artist (no artist linked with track)        
+        reward_no_candidate_artist = reward_track_by_matching_artists([], frequency)        #no candidate artist
+        
+        # in case there is no input tracks' artists and so no frequency 
+        reward_no_freq = reward_track_by_matching_artists(candidate, {})        # no frequency 
 
     # test if cosine similarity returns correct value
     def test_cosine_equation_is_correct(self):
@@ -206,38 +267,6 @@ class recommenderLogicTest(TestCase):
         # vector2 mag = sqrt(14)
         expectedResult = 6 / (np.sqrt(3) * np.sqrt(14))
         self.assertAlmostEqual(result, expectedResult)
-
-    #######################deleted code test #############################
-    # # test if the closest to 1 index is returned and 
-    # # distances less than -1 are considered invalid and raise error
-    # def test_get_closest_to_one_index_returns_correct_index(self):
-    #     distances = [-1.1, -1.0, 0, 0.1, 0.12]
-    #     result = get_closest_to_one_index(distances)
-       
-    #     self.assertEqual(result, 4)
-
-
-    #     wrong_distances = [-1.1, -1.5]
-    #     with self.assertRaises(ValueError):
-    #         result1 = get_closest_to_one_index(wrong_distances)
-
-    # test if the cosine recommender logic returns list which contains Track objects, works with top k =10 and k=1(default)
-    def test_recommend_Cosine_returns_track(self):
-        input_tracks = ["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"]
-        input_preferences = {
-            "energy_weight" : 1.0,
-            "tempo_weight" : 1.2
-        }
-        result = recommend_Cosine_topk(input_tracks, input_preferences)
-        self.assertIsInstance(result, list)     # returned type is list.
-        self.assertTrue(all(isinstance(i, Track) for i in result))        # check if list's elements are Track objects.
-        self.assertTrue(len(result), 1)     # no k defined => 1 track returned
-
-        k = 10
-        result_topk = recommend_Cosine_topk(input_tracks, input_preferences, k)
-        self.assertTrue(len(result_topk), k)        # k =10 , 10 Tracks returned
-
-
 
     ###### random by artist testing ######
     # test if get_artist_ids_list returns list of related artist ids to input tracks
@@ -278,127 +307,8 @@ class recommenderLogicTest(TestCase):
         self.assertEqual(artist_freq, {'abc' : 3, 'def': 1})
         self.assertEqual(type(artist_freq), Counter)        # returned type is Counter
 
-    ############deleted code test##################
-    # # test if the correct maximum value is returned 
-    # def test_get_max_freq_of_artist_returns_correct_max(self):
-    #     artist_freq = get_artist_id_freq(['abc', 'abc', 'def', 'abc'])      
-    #     max_freq = get_max_freq_of_artist(artist_freq)
 
-    #     artist_freq1 = get_artist_id_freq(['abc', 'abc', 'def', 'def'])     # two same freq
-    #     max_freq1 = get_max_freq_of_artist(artist_freq1)
-
-    #     artist_freq2 = get_artist_id_freq(['abc'])     # only one input artist id
-    #     max_freq2 = get_max_freq_of_artist(artist_freq2)
-        
-    #     artist_freq3 = get_artist_id_freq([])     # no input artist id
-    #     max_freq3 = get_max_freq_of_artist(artist_freq3)
-
-    #     self.assertEqual(max_freq, 3)
-    #     self.assertEqual(max_freq1, 2)
-    #     self.assertEqual(max_freq2, 1)
-    #     self.assertEqual(max_freq3, 0)
-
-    ############deleted code test##################
-    # # test if the correct list of most frequent artist ids is returned
-    # def test_get_most_frequent_artists_returns_correct(self):
-    #     artist_ids = ['abc', 'abc', 'def', 'def']
-    #     artist_freq = get_artist_id_freq(artist_ids)     
-    #     max_freq = get_max_freq_of_artist(artist_freq)
-
-    #     artist_ids1 = ['abc', 'abc', 'abc', 'def']
-    #     artist_freq1 = get_artist_id_freq(artist_ids1)     
-    #     max_freq1 = get_max_freq_of_artist(artist_freq1)
-
-    #     artist_ids2 = ['abc']
-    #     artist_freq2 = get_artist_id_freq(artist_ids2)     
-    #     max_freq2 = get_max_freq_of_artist(artist_freq2)
-
-    #     artist_ids3 = []
-    #     artist_freq3 = get_artist_id_freq(artist_ids3)     
-    #     max_freq3 = get_max_freq_of_artist(artist_freq3)
-
-    #     top_artists = get_most_frequent_artists(artist_ids, artist_freq, max_freq)
-    #     top_artists1 = get_most_frequent_artists(artist_ids1, artist_freq1, max_freq1)
-    #     top_artists2 = get_most_frequent_artists(artist_ids2, artist_freq2, max_freq2)
-    #     top_artists3 = get_most_frequent_artists(artist_ids3, artist_freq3, max_freq3)
-
-    #     self.assertEqual(len(top_artists), 2)
-    #     self.assertEqual(top_artists, ['abc','def'])
-    #     self.assertEqual(len(top_artists1), 1)
-    #     self.assertEqual(top_artists1, ['abc'])
-    #     self.assertEqual(len(top_artists2), 1)
-    #     self.assertEqual(top_artists2, ['abc'])
-    #     self.assertEqual(top_artists3, None)
-    
-    ############deleted code test##################
-    # # test if get_random_track_row_of_chosen_artist returns correct random track if input are valid 
-    # def test_get_random_track_row_of_chosen_artist_returns_correct(self):
-    #     chosen_artists = '6sCbFbEjbYepqswM1vWjjs'
-    #     input_tracks = ['1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv']
-    #     random_track = get_random_track_row_of_chosen_artist(chosen_artists, input_tracks)
-        
-    #     self.assertIn (random_track, [self.track1, self.track3, self.trackCollab])        # track 1,3, collab
-    #     self.assertNotIn(random_track, [self.track2, self.track4, self.track5, self.track6, self.track7, self.trackNoLink])      # 2,4,5,6,7,notracklink
-    
-    ############deleted code test##################
-    # #  test if get_random_track_row_of_chosen_artist returns None if input are invalid
-    # def test_get_random_track_row_of_chosen_artist_returns_none(self):
-    #     chosen_artists = ''
-    #     input_tracks = ['1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv']
-        
-        
-    #     with self.assertRaises(ValueError):
-    #         get_random_track_row_of_chosen_artist(chosen_artists, input_tracks)
-    
-    ############deleted code test##################
-    # # test if get_any_random_track returns a random track object (but not the tracks in input list of track ids)
-    # def test_get_any_random_track_returns_correct(self):
-    #     # the list of all tracks in the temporary database without the only track id '744ZuzjXQmoJmOdk2I1ym9'
-    #     input_tracks = ['4qEoqyPbLYnLOii6mKlIjI', '5lz0NiPw32Gq4kMIUJvuw2', '1rM0CnyUiiw6A9CHJRXjZA', 'abcdefghijklmnopqrstuv', 'pqrstuvabcklmnodefghij', 'klmnopqrstuvabcdefghij', 'uvabcklmnopqrstdefghij', 'uvabcklefghijmnopqrstd']
-    #     expected_track = '744ZuzjXQmoJmOdk2I1ym9'       # the only track id not included in input_tracks list
-    #     random_track = get_any_random_track(input_tracks)
-        
-    #     self.assertIsInstance(random_track, Track)
-    #     self.assertEqual(random_track.track_id, expected_track)
-
-    #     with self.assertRaises(ValueError):     # for None case (no more tracks to be selected from the database)
-    #         get_any_random_track(input_tracks + [expected_track])
-
-    ############deleted code test##################
-    # # test if random by artist model returns a track object
-    # def test_recommend_random_by_artist_returns_track(self):
-    #     input_tracks = ['744ZuzjXQmoJmOdk2I1ym9', 'uvabcklmnopqrstdefghij', '1rM0CnyUiiw6A9CHJRXjZA']
-        
-    #     result = recommend_random_by_artist(input_tracks)
-
-    ################top k - testing#################
     ###################Euclidean ###################
-
-    # test if get_top_tracks returns correct data
-    def test_get_top_tracks_return_correct(self):
-        comparison_results = [(self.track1, 0.1),(self.track4, 0.4),(self.track7, 0.6),(self.track3, 0.3),
-                              (self.track6, 0.5),(self.track2, 0.2),(self.track5, 0.4),(self.trackCollab, 0.7)]
-        k = 5
-        higher_Cosine = True # Cosine (higher to lower => highest results returned)
-        higher_Euclidean = False # Euclidean (lower to higher => lowest results returned)
-
-        output_Cosine = get_top_tracks(comparison_results, k, higher_Cosine)
-        output_ids_Cosine = {t.track_id for t in output_Cosine}
-        output_Euclidean = get_top_tracks(comparison_results, k, higher_Euclidean)
-        output_ids_Euclidean = {t.track_id for t in output_Euclidean}
-
-
-        expected_output_Cosine = [self.trackCollab, self.track7, self.track6, self.track5, self.track4]
-        expected_output_Euclidean = [self.track1, self.track2, self.track3, self.track4, self.track5]
-        expected_ids_Cosine = {t.track_id for t in expected_output_Cosine}
-        expected_ids_Euclidean = {t.track_id for t in expected_output_Euclidean}
-
-        self.assertEqual(len(output_Cosine), k)     # no: of elements in output is k
-        self.assertTrue(expected_ids_Cosine.issubset(output_ids_Cosine))        # expected_ids are in output ids
-        self.assertIsInstance(output_Cosine[0], Track)      # of Track instance
-
-        self.assertTrue(expected_ids_Euclidean.issubset(output_ids_Euclidean))      # expected_ids are in output ids
-
     # test if recommend_euclidean_topk returns correct data
     def test_recommend_Euclidean_topk_returns_correct(self):
               
@@ -414,24 +324,34 @@ class recommenderLogicTest(TestCase):
 
         self.assertIsInstance(recommended, list)        # the returned data is list
         self.assertEqual (len(recommended), k)  # len of returned list is k 
-
         self.assertEqual(len(set(recommended_ids)), len(recommended_ids)) # no duplicate
-        
-        # elements of the returned list are Track instance
-        for t in recommended:
-            self.assertIsInstance(t, Track)
-
+        self.assertTrue(all(isinstance(i, Track) for i in recommended))      # all elements in the returned list are Track obj      # check if list's elements are Track objects.
         # no input tracks  
         for id in input_track_ids:
             self.assertNotIn(id, recommended_ids)
 
         recommended1 = recommend_Euclidean_topk(input_track_ids, input_preferences)     # no k value given
+        recommended_ids1 = {t.track_id for t in recommended1}
         self.assertIsInstance(recommended1, list)
-        self.assertEqual(len(recommended1), 1)              
+        self.assertEqual(len(recommended1), 1)     
+        self.assertEqual(len(set(recommended_ids1)), len(recommended_ids1)) # no duplicate
+        self.assertTrue(all(isinstance(i, Track) for i in recommended1))      # all elements in the returned list are Track obj      # check if list's elements are Track objects.
+        # no input tracks  
+        for id in input_track_ids:
+            self.assertNotIn(id, recommended_ids1)
 
-        
+        recommended_no_pref = recommend_Cosine_topk(input_track_ids)
+        recommended_ids_no_pref = {t.track_id for t in recommended_no_pref}
+        self.assertIsInstance(recommended_no_pref, list)
+        self.assertEqual(len(recommended_no_pref), 1)     
+        self.assertEqual(len(set(recommended_ids_no_pref)), len(recommended_ids_no_pref)) # no duplicate
+        self.assertTrue(all(isinstance(i, Track) for i in recommended_no_pref))      # all elements in the returned list are Track obj      # check if list's elements are Track objects.
+        # no input tracks  
+        for id in input_track_ids:
+            self.assertNotIn(id, recommended_ids_no_pref) 
+       
+
     ###################Cosine ######################
-
     # test if recommend_cosine_topk returns correct data
     def test_recommend_Cosine_topk_returns_correct(self):
               
@@ -447,21 +367,31 @@ class recommenderLogicTest(TestCase):
 
         self.assertIsInstance(recommended, list)        # the returned data is list
         self.assertEqual (len(recommended), k)  # len of returned list is k 
-
-        self.assertEqual(len(set(recommended_ids)), len(recommended_ids)) # no duplicates
-
-        # elements of the returned list are Track instance
-        for t in recommended:
-            self.assertIsInstance(t, Track)
-
+        self.assertEqual(len(set(recommended_ids)), len(recommended_ids)) # no duplicate
+        self.assertTrue(all(isinstance(i, Track) for i in recommended))      # all elements in the returned list are Track obj      # check if list's elements are Track objects.
         # no input tracks  
         for id in input_track_ids:
             self.assertNotIn(id, recommended_ids)
 
-        # one track recommendation 
         recommended1 = recommend_Cosine_topk(input_track_ids, input_preferences)     # no k value given
+        recommended_ids1 = {t.track_id for t in recommended1}
         self.assertIsInstance(recommended1, list)
-        self.assertEqual(len(recommended1), 1) 
+        self.assertEqual(len(recommended1), 1)     
+        self.assertEqual(len(set(recommended_ids1)), len(recommended_ids1)) # no duplicate
+        self.assertTrue(all(isinstance(i, Track) for i in recommended1))      # all elements in the returned list are Track obj      # check if list's elements are Track objects.
+        # no input tracks  
+        for id in input_track_ids:
+            self.assertNotIn(id, recommended_ids1)
+
+        recommended_no_pref = recommend_Cosine_topk(input_track_ids)
+        recommended_ids_no_pref = {t.track_id for t in recommended_no_pref}
+        self.assertIsInstance(recommended_no_pref, list)
+        self.assertEqual(len(recommended_no_pref), 1)     
+        self.assertEqual(len(set(recommended_ids_no_pref)), len(recommended_ids_no_pref)) # no duplicate
+        self.assertTrue(all(isinstance(i, Track) for i in recommended_no_pref))      # all elements in the returned list are Track obj      # check if list's elements are Track objects.
+        # no input tracks  
+        for id in input_track_ids:
+            self.assertNotIn(id, recommended_ids_no_pref) 
 
 
     ###################random by artist ##############
@@ -471,8 +401,6 @@ class recommenderLogicTest(TestCase):
         
         self.assertEqual(type(ranking_list), list)
         self.assertEqual(ranking_list, [('c',4),('b',2),('d',2),('a',1)])
-
-
 
     # test if get_list_of_random_track_rows_of_chosen_artist returns correct data
     def test_get_list_of_random_track_rows_of_chosen_artist_returns_correct(self):
@@ -548,6 +476,27 @@ class recommenderLogicTest(TestCase):
         self.assertIn(output1[0], expected_outputs)
         self.assertIsInstance(output[0], Track)
 
+    # test if recommend_random_topk works correctly
+    def test_recommend_random_topk(self):
+        input_track_ids = [self.track1.track_id, self.track2.track_id, self.track3.track_id, self.track4.track_id, self.track5.track_id]
+        
+        recommended = recommend_random_topk(input_track_ids)        # k = 1
+        self.assertEqual(len(recommended), 1)       # k = 1
+        self.assertTrue(all(isinstance(i, Track) for i in recommended))      # all elements in the returned list are Track obj     
+
+        # no duplicate
+        self.assertEqual(len(set(recommended)), len(recommended)) # no duplicate
+
+        # k test
+        k = 2
+        recommended_topk = recommend_random_topk(input_track_ids, k)      
+        self.assertEqual(len(recommended_topk), k)       # k = 10 (10 track objects in returned list)
+
+        # no input included in the result 
+        for id in input_track_ids:
+            self.assertNotIn(id, recommended_topk)
+       
+
 # serializer test
 class recommendTrackIdSerializerTest(APITestCase):
 
@@ -594,7 +543,6 @@ class recommendTrackIdSerializerTest(APITestCase):
             }
         }
 
-
         # invalid preferences is not allowed (0.5-1.5 is an appropriate range in my opinion)
         self.invalid_input_data4 = {
             "track_ids": ["4qEoqyPbLYnLOii6mKlIjI"],
@@ -612,6 +560,23 @@ class recommendTrackIdSerializerTest(APITestCase):
                 "tempo_weight": 1.0
             }
         }
+
+        # pref values of string are not allowed
+        self.invalid_input_data6 = {
+            "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2"],
+            "preferences": {
+                "energy_weight": 'High',
+                "tempo_weight": 0.5
+            }
+        }
+
+        self.track = TrackFactory.create( 
+            track_id='744ZuzjXQmoJmOdk2I1ym9',
+            track_name='"Keep It Undercover - Theme Song From ""K.C. Undercover"""', 
+            fixed_track_name = 'Keep It Undercover',
+            finalized_vector = "[0.7450826033928375, 1.083544620308554, 1.0684725534549997, 0.4721228022873516, 0.41189189895413475, 0.0, 1.0561951260398548]"
+        )
+
 
     # valid data testing
     def test_recommenderInputSerializerValidData(self):
@@ -638,11 +603,22 @@ class recommendTrackIdSerializerTest(APITestCase):
         serializer = RecommenderInputSerializer(data = self.invalid_input_data5)
         self.assertFalse(serializer.is_valid())
 
+        serializer = RecommenderInputSerializer(data = self.invalid_input_data6)
+        self.assertFalse(serializer.is_valid())
+
+    # output serializer testing 
+    def test_TrackIdRecommendationSerializer(self):
+        output_serializer = TrackIdRecommendationSerializer(self.track)
+        self.assertEqual(output_serializer.data['track_id'],self.track.track_id)        # returned track id is correct
+
 # api test
 class recommendTrackIDTest(APITestCase):
 
     def setUp(self):
-        self.good_url = reverse('recommend_track_api')
+        self.good_url_euclidean = reverse('recommend_track_api')
+        self.good_url_cosine = reverse('recommend_track_cosine_api')
+        self.good_url_random_artist = reverse('recommend_track_random_api')
+        self.good_url_random = reverse('recommend_track_random1_api')
 
         # full valid input
         self.good_input1 =  {"track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2"],
@@ -700,7 +676,7 @@ class recommendTrackIDTest(APITestCase):
         
         
         
-        Track.objects.create(
+        self.track1 = TrackFactory.create(
             track_id="4qEoqyPbLYnLOii6mKlIjI",
             track_name = "Determinate - From ""Lemonade Mouth""",
             fixed_track_name = "Determinate",
@@ -715,7 +691,7 @@ class recommendTrackIDTest(APITestCase):
             finalized_vector="[0.5914070296041691, 1.075143150051259, 0.29006131076060143, 0.004705690611959099, 0.6274237485220049, 0.0, 1.042063575215305]"
         )
 
-        Track.objects.create(
+        self.track2 = TrackFactory.create(
             track_id="5lz0NiPw32Gq4kMIUJvuw2",
             track_name = "Take On the World - Theme Song From ""Girl Meets World""",
             fixed_track_name = "Take On the World",
@@ -730,7 +706,7 @@ class recommendTrackIDTest(APITestCase):
             finalized_vector="[0.6841002328417786, 0.9981296726927211, 0.9354108025670682, 0.0013314044032724744, 0.4549565910412271, 0.0002909456740442656, 1.0051254112272907]"
         )
 
-        Track.objects.create(
+        self.track3 = TrackFactory.create(
             track_id="1rM0CnyUiiw6A9CHJRXjZA",
             track_name = "Take On the World - Theme Song From ""Girl Meets World""",
             fixed_track_name = "Take On the World",
@@ -745,54 +721,48 @@ class recommendTrackIDTest(APITestCase):
             finalized_vector="[0.756059430092028, 1.0849448653514364, 1.100407373668103, 0.041574344961911015, 0.44000287433286084, 0.0, 1.0003729857720596]"
         )
 
+        # good and bad inputs
+        self.good_inputs = [self.good_input1, self.good_input2, self.good_input3]
+        self.bad_inputs = [self.bad_input1, self.bad_input2, self.bad_input3, self.bad_input4, self.bad_input5, self.bad_input6]
+        self.good_urls = [self.good_url_euclidean, self.good_url_cosine, self.good_url_random_artist, self.good_url_random]
        
-    # good url and input returns valid
-    def test_recommendTrackIdReturnsSuccess(self):
-        response = self.client.post(self.good_url, 
-                                    self.good_input1,
-                                    format= 'json')
-        self.assertEqual(response.status_code,200) 
+    # testing if api returns correct with good inputs
+    def test_recommendTrackIdModelsReturnsSuccess(self):
+        for good_url in self.good_urls:
+            for good_input in self.good_inputs:
 
-        response = self.client.post(self.good_url, 
-                                    self.good_input2,
-                                    format= 'json')
-        self.assertEqual(response.status_code,200)   
+                response = self.client.post(good_url, 
+                                            good_input,
+                                            format= 'json')
+                self.assertEqual(response.status_code,200) 
 
-        response = self.client.post(self.good_url, 
-                                    self.good_input3,
-                                    format= 'json')
-        self.assertEqual(response.status_code,200) 
+            response = self.client.post(good_url + '?k=2',
+                                        self.good_input3,
+                                        format= 'json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data), 2)
 
-    def test_recommendTrackIdReturnsError(self):
-        response = self.client.post(self.good_url,
-                                    self.bad_input1,
-                                    format = 'json')
-        self.assertEqual(response.status_code, 400)
+    # testing if api returns error with bad inputs
+    def test_recommendTrackIdModelsReturnsError(self):
+        for good_url in self.good_urls:
+            for bad_input in self.bad_inputs:
 
-        response = self.client.post(self.good_url,
-                                    self.bad_input2,
-                                    format = 'json')
-        self.assertEqual(response.status_code, 400)
+                response = self.client.post(good_url,
+                                            bad_input,
+                                            format = 'json')
+                self.assertEqual(response.status_code, 400)
+            
+            # test if k=abc is invalid
+            response = self.client.post(good_url + '?k=abc',
+                                        self.good_input3,
+                                        format= 'json')
+            self.assertEqual(response.status_code, 400)
 
-        response = self.client.post(self.good_url,
-                                    self.bad_input3,
-                                    format = 'json')
-        self.assertEqual(response.status_code, 400)
-
-        response = self.client.post(self.good_url,
-                                    self.bad_input4,
-                                    format = 'json')
-        self.assertEqual(response.status_code, 400)
-
-        # response = self.client.post(self.good_url,
-        #                             self.bad_input5,
-        #                             format = 'json')
-        # self.assertEqual(response.status_code, 400)
-
-        response = self.client.post(self.good_url,
-                                    self.bad_input6,
-                                    format = 'json')
-        self.assertEqual(response.status_code, 400)
+            # test if k= less than 0 is invalid
+            response = self.client.post(good_url + '?k=0',
+                                        self.good_input3,
+                                        format= 'json')
+            self.assertEqual(response.status_code, 400)
 
 # view (frontend) test
 class frontendFunctionsTest(TestCase):
@@ -848,7 +818,21 @@ class frontendFunctionsTest(TestCase):
             track = self.trackCollab,
             artist = self.artist2
         )
-    
+
+    # testing if get_input_tracks_in_order works, order correctly
+    def test_get_input_tracks_in_order_correct(self):
+        input_track_ids = [self.track4.track_id, self.track1.track_id]
+
+        ordered_tracks = get_input_tracks_in_order(input_track_ids)
+        self.assertEqual(ordered_tracks, [self.track4, self.track1])        # ordered tracks are in added order
+        self.assertEqual(type(ordered_tracks), list)        # return type is list
+        self.assertTrue(all(isinstance(i, Track) for i in ordered_tracks))      # all elements in the returned list are Track obj      # check if list's elements are Track objects.
+
+        # for no input track case.
+        no_tracks = get_input_tracks_in_order([])
+        self.assertEqual(len(no_tracks), 0)
+        self.assertEqual(type(no_tracks), list)
+
     # index function testing
     # test if index function loads okay, use the right template
     def test_index_loads_correctly(self):
@@ -861,7 +845,7 @@ class frontendFunctionsTest(TestCase):
     def test_session_vars_are_correct(self):
         sessionVar = self.client.session
         sessionVar['input_tracks'] = [self.track1.track_id]
-        sessionVar['recommended_track'] = 'Photograph'
+        sessionVar['recommended_track'] = {'trackId' : 'abcd', 'trackName' : 'Photograph', 'arists' : ['Ed Shreen']}
         sessionVar['preferences'] = {'energy_weight': "Medium", 'tempo_weight': "Medium"}
 
         sessionVar.save()
@@ -869,12 +853,50 @@ class frontendFunctionsTest(TestCase):
         response = self.client.get(reverse('index'))
 
         # test if the session variables and variables passed to HTML are the same (checking for all three sessioin variables)
-        expected_all_tracks = list(response.context['all_tracks'].values_list('track_id', flat=True))
-        self.assertEqual(expected_all_tracks, [self.track4.track_id, self.trackCollab.track_id])
+        expected_all_tracks = response.context['all_tracks']
+        self.assertEqual(expected_all_tracks, [self.track4, self.trackCollab])
         self.assertNotIn(self.track1.track_id, expected_all_tracks)
-        self.assertEqual(list(response.context['input_tracks'].values_list('track_id', flat=True)), sessionVar['input_tracks'])        
+        self.assertEqual(list(response.context['input_tracks']), [self.track1])        
         self.assertEqual(response.context['recommended_track'], sessionVar['recommended_track'])
         self.assertEqual(response.context['preferences'], sessionVar['preferences'])
+
+    # test if searchTracks work correct.
+    def test_search_tracks_correct(self):
+        session = self.client.session
+        session['input_tracks'] = [self.track1.track_id]
+        session.save()
+
+        # track title search
+        response = self.client.get(reverse('search_tracks'), {'q': 'random'})
+         
+        self.assertEqual(response.status_code, 200)         # successful search 
+        self.assertContains(response, 'random')               # correct search result (track title name)
+        self.assertNotContains(response, self.track1.track_name)        # already in input tracks should not be in search results  
+
+        # artist keyword search
+        response_artist = self.client.get(reverse('search_tracks'), {'q':'Zendaya'})
+        self.assertEqual(response.status_code, 200)         # successful search 
+        self.assertContains(response_artist, 'Zendaya')
+
+        # nothing type and enter clicked case.
+        response_blank = self.client.get(reverse('search_tracks'), {'q':''})
+        self.assertEqual(response.status_code, 200)         # successful search 
+        self.assertContains(response_blank, self.track4.track_name)
+        self.assertContains(response_blank, html.escape(self.trackCollab.track_name))       # cuz of &
+        self.assertNotContains(response, self.track1.track_name)        # already in input tracks should not be in search results  
+
+
+    # test if getAllTracks work correctly
+    def test_getAllTracks_correct(self):
+        input_track_ids = [self.track4.track_id]
+
+        all_tracks = getAllTracks(input_track_ids)
+
+        self.assertNotIn(self.track4, all_tracks)       # track in input list is not included
+        self.assertEqual(all_tracks, [self.track1, self.trackCollab])
+        self.assertEqual(type(all_tracks), list)        # return type is list
+        self.assertTrue(all(isinstance(i, Track) for i in all_tracks))      # all elements in the returned list are Track obj     
+
 
     # addTrack funtion testing
     # testing if the add_to_inputs url does correctly, session variable is created and stores a correct input
@@ -891,8 +913,8 @@ class frontendFunctionsTest(TestCase):
         self.assertEqual(sessionVar["input_tracks"][0], valid_input_id)       # the element in the input_tracks session var is track details related to the input id
 
     # test if adding non exisitng or already-in-input-lists track does not work.
-    def test_add_invalid_track_is_not_added(self):
-
+    def test_adding_invalid_track_does_not_work(self):
+        add_track_url = '/add_to_inputs/'
         sessionVar = self.client.session
         sessionVar['input_tracks'] = [self.track1.track_id, self.track4.track_id]
         sessionVar.save()
@@ -904,13 +926,13 @@ class frontendFunctionsTest(TestCase):
         invalid_track2 = 'abcdefg'      # non-existing track in database
         
         # adding already-in-input-lists track -> so, not added
-        response = self.client.post('/add_to_inputs/' + invalid_track1 + '/')
+        response = self.client.post(add_track_url + invalid_track1 + '/')
         self.assertEqual(response.status_code, 302)     # redirecting ok
         self.assertEqual(len(sessionVar['input_tracks']), 2)    # same length as defined earlier above
         self.assertEqual(sessionVar['input_tracks'].count(invalid_track1), 1)          # only one self.track1, the duplicate self.track1 track is not added      
 
         # adding non-existing track -> so, not added
-        response = self.client.post('/add_to_inputs/' + invalid_track2 + '/')
+        response = self.client.post(add_track_url + invalid_track2 + '/')
         self.assertEqual(response.status_code, 302)     # redirecting ok
         self.assertEqual(len(sessionVar['input_tracks']), 2)    # same length as defined earlier above
         self.assertNotIn(invalid_track2, sessionVar['input_tracks'])    # invalid track 2 (non-existing track) is not added.
@@ -947,6 +969,7 @@ class frontendFunctionsTest(TestCase):
         self.assertEqual(response.status_code, 302)     # check if no error
         self.assertEqual(len(sessionVar['input_tracks']), 3)        # check if length is still the same as created above (3)
 
+        # remove the existing track
         remove_track = 'hijklmn'
         remove_track_url = '/remove_from_inputs/' + remove_track +'/'
         
@@ -961,6 +984,7 @@ class frontendFunctionsTest(TestCase):
     def test_get_artist_list_returns_correct(self):
         artists = get_artists_list(self.trackCollab)
 
+        self.assertEqual(type(artists), list)       # return type is list
         self.assertEqual(len(artists), 2)   # check if the artists list has 2 elements.
         self.assertEqual(['Zendaya', 'Sofia Carson'], artists)      # check if artists in the list are correct.
 

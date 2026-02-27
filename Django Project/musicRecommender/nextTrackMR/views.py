@@ -11,28 +11,25 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials 
 
 # get the input tracks from db, based on the ipnut_tracks order.
-def get_input_tracks_in_order(request):
+def get_input_tracks_in_order(input_track_ids):
     
-    input_track_ids = request.session.get('input_tracks', [])      # get input track ids
-
     # eg : https://www.geeksforgeeks.org/python/how-to-fetch-database-records-in-the-same-order-as-an-array-of-ids-in-django/
     # Create a list of When conditions based on the input_track_ids list 
     whens = [When(track_id=id_val, then=pos) for pos, id_val in enumerate(input_track_ids)]
 
     # Fetch the records and order them using Case and When
     input_tracks = Track.objects.filter(track_id__in=input_track_ids).order_by(Case(*whens))
-    return input_tracks
+    return list(input_tracks)
 
 # Create your views here.
 def index(request):
     # request.session.flush()
-    all_tracks = getAllTracks(request)      # get all avaiable tracks
-
-    input_tracks = get_input_tracks_in_order(request)
-
+    
+    input_track_ids = request.session.get('input_tracks', [])
+    all_tracks = getAllTracks(input_track_ids)      # get all avaiable tracks
+    input_tracks = get_input_tracks_in_order(input_track_ids)
 
     recommended_track = request.session.get('recommended_track', None)
-    print("##################", type(recommended_track))
     preferences = request.session.get('preferences', {'energy_weight': "Medium", 'tempo_weight': "Medium"})       #set to medium if nothing is selected
     print ("Current values : \n Input Tracks : " , input_tracks,"\n Recommended track : ", recommended_track,"\n Preference : ", preferences)
     return render(request, 'nextTrackMR/home.html', {'all_tracks': all_tracks,'input_tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
@@ -41,7 +38,7 @@ def index(request):
 def searchTracks(request):
     # create input_tracks sessionVar if not exists, get value in it.
     input_track_ids = request.session.get('input_tracks', [])
-    input_tracks = get_input_tracks_in_order(request)
+    input_tracks = get_input_tracks_in_order(input_track_ids)
     recommended_track = request.session.get('recommended_track', None)
     preferences = request.session.get('preferences', {'energy_weight': "Medium", 'tempo_weight': "Medium"})       #set to medium if nothing is selected
 
@@ -55,22 +52,19 @@ def searchTracks(request):
                 track_id__in=input_track_ids        # no input id included
             ).distinct()            # only distinct, no duplicate
         else:
-            searchResults = getAllTracks(request)
+            searchResults = getAllTracks(input_track_ids)
         
     
         return render(request, 'nextTrackMR/home.html', {'all_tracks': searchResults,'input_tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
 
 
 # get all the tracks in the database to display them
-def getAllTracks(request):
-
-    # create input_tracks sessionVar if not exists, get value in it.
-    input_track_ids = request.session.get('input_tracks', [])
+def getAllTracks(input_track_ids):
 
     # get all the tracks with their artists without the tracks already selected, Order the tracks by its fixed track name
     tracks = Track.objects.all().exclude(track_id__in = input_track_ids).prefetch_related('artist_set').order_by('fixed_track_name')
  
-    return tracks 
+    return list(tracks)
 
 
 # add track 
@@ -161,9 +155,12 @@ def recommend(request):
             print("PREFERENCES:", preferences)
             print("TYPE:", type(preferences["energy_weight"]))
 
-        # recommender logic 
-        recommendation = recommend_Euclidean(input_track_ids, numeric_preferences)
-
+        try: 
+            # recommender logic 
+            recommendation = recommend_Euclidean(input_track_ids, numeric_preferences)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+        
         # get artists of the recommended track
         artists = get_artists_list(recommendation)
 

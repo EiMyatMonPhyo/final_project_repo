@@ -18,21 +18,6 @@ def get_track_vectors_from_database(input_track_ids):
     
     input_vectors = []
 
-    # if, later, features are fetched from API, 
-    # 1. fetch the features ['danceability', 'energy', 'valence', 'acousticness', 'tempo', 'instrumentalness', 'loudness']
-
-    # 2. Normalize and weight (Vectors) 
-    # weight_list = np.array([
-    #                 1.1,  # danceability
-    #                 1.4,  # energy
-    #                 1.3,  # valence     
-    #                 1.3,  # acousticness
-    #                 1.1,  # tempo
-    #                 1.2,  # instrumentalness
-    #                 1.2   # loudness
-    # ])
-
-
     # find the songs in the database
     for track_id in input_track_ids:
         try:
@@ -85,7 +70,6 @@ def get_track_index_with_minimum_distance(comparison_results):
     
     # minimum Euclidean value
     min_Euclidean = np.min(comparison_results)
-    # print ("Minimum value is ", min_Euclidean)
 
     # finding the index with minimum value of euclidean result
     for index, result in enumerate(comparison_results):
@@ -166,7 +150,7 @@ def recommend_Euclidean(input_track_ids, input_preferences):
     track = all_tracks[min_index]
 
 
-
+ 
     # choose random track
     # # track = Track.objects.order_by('?').first()
     return track
@@ -194,6 +178,9 @@ def get_top_tracks(comparison_results, k, higher=True):
     function : apply min-max normalization to input list
 """
 def normalize_Euclidean(all_dist_scores):
+    if not all_dist_scores:
+        raise ValueError("No distance scores provided")
+    
     maximum = max(all_dist_scores)
     minimum = min(all_dist_scores)
     norm_scores_list = []
@@ -210,12 +197,16 @@ def normalize_Euclidean(all_dist_scores):
 
 
 """
-    input : candidate artists (a list of candidate track's artists), input_artists_frequency (a Counter obj/ dict of artist id as key and its frequency as value)
+    input : candidate artists (a list of a candidate track's artists), input_artists_frequency (a Counter obj/ dict of artist id as key and its frequency as value)
     output : candidate score (how many of input artists are matched?)
     function : for each candidate artist, if matching artist is in input_tracks, reward that artist based on artist frequency in input artists. return how many of input artists are matched 
 """
 # reward the track with matching artists
 def reward_track_by_matching_artists(candidate_artists, input_artists_frequency):
+    # edge case handling (in case input_artists_frequency is empty)
+    if not input_artists_frequency:
+        return 0
+       
     score = 0
     # for every artist in candidate_artists list, 
     for candidate_artist in candidate_artists:
@@ -228,8 +219,6 @@ def reward_track_by_matching_artists(candidate_artists, input_artists_frequency)
     # print ("number of input artists matched by candidate artists : ", score)
 
     # the number of input tracks artists
-    if not input_artists_frequency:
-        return 0
     sum_of_all_freq = sum(input_artists_frequency.values())
     
     # handling rare edge case, (denominator to be non zero)
@@ -243,7 +232,7 @@ def reward_track_by_matching_artists(candidate_artists, input_artists_frequency)
 
 
 ################### Euclidean model related (Used in api.py)############################
-def recommend_Euclidean_topk(input_track_ids, input_preferences, k = 1):
+def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
 
     # for null input tracks
     if not input_track_ids:
@@ -330,7 +319,7 @@ def calculate_Cosine(vector1, vector2):
 
 
 # Cosine similarity based recommendation logic
-def recommend_Cosine_topk(input_track_ids, input_preferences, k=1):
+def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
@@ -412,12 +401,9 @@ def get_artist_ids_list(input_track_ids):
     for track_id in input_track_ids:        #for every track, find the artists. (1 track can have many artist)
         try:
             track = Track.objects.get(track_id = track_id)       # track
-            print ("track is ", track)
             trackArtistLinks = TrackArtistLink.objects.filter(track = track)     # link table instance
-            print ("track artist links : " , trackArtistLinks)
             # for each instance of trackArtistLink, we put the corresponding artist id to the artistIds
             for link in trackArtistLinks:
-                print ("artist id is : ", link.artist_id)
                 artist_ids.append(link.artist_id)
 
         except Track.DoesNotExist:
@@ -508,7 +494,7 @@ def recommend_random_by_artist_topk(input_track_ids, k=1):
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
-
+    
     #list of artist ids of every input tracks
     artist_ids = get_artist_ids_list(input_track_ids)
 
@@ -552,11 +538,14 @@ def recommend_random_topk(input_track_ids, k=1):
     if not input_track_ids:
         raise ValueError("No input tracks provided")
     
+    for track_id in input_track_ids:
+        if not Track.objects.filter(track_id= track_id).exists():        # if input track is not in database, shows error
+            raise ValueError("Track not found")
+        
     recommended_tracks = []
 
     if(len(recommended_tracks) < k):
         remaining_tracks = get_non_repeating_random_tracks(input_track_ids, recommended_tracks)
-
         recommended_tracks = add_tracks_to_recommended_tracks_list(remaining_tracks, recommended_tracks, k)
     return recommended_tracks
 
