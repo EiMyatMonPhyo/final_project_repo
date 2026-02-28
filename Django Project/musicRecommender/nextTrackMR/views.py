@@ -119,6 +119,14 @@ def get_artists_list(recommendation):
     return list(artists)
 
 
+def convert_pref_from_str_to_numerics(pref_mapping, str_pref):
+    numeric_pref = {
+                    "energy_weight": pref_mapping[str_pref["energy_weight"]],
+                    "tempo_weight": pref_mapping[str_pref["tempo_weight"]],
+                }
+    return numeric_pref
+
+
 def recommend(request):
     print("recommend")
 
@@ -137,36 +145,32 @@ def recommend(request):
         
 
         # get input user preference from session storage, change it to numerical number
-        if 'preferences' in request.session:
-            preferences = request.session['preferences']
+        preferences = request.session['preferences']
 
-            pref_mapping = {
-                "High": 1.2,
-                "Medium": 1.0,
-                "Low": 0.8
-            }
+        # pref and its mapping to numerical range
+        pref_mapping = {
+            "High": 1.2,
+            "Medium": 1.0,
+            "Low": 0.8
+        }
+        # convert from str preference to numerical preferences
+        numeric_preferences = convert_pref_from_str_to_numerics(pref_mapping, preferences)
 
-            numeric_preferences = {
-                "energy_weight": pref_mapping[preferences["energy_weight"]],
-                "tempo_weight": pref_mapping[preferences["tempo_weight"]],
-            }
-
-            print ("Numeric Preference : ", numeric_preferences)
-            print("PREFERENCES:", preferences)
-            print("TYPE:", type(preferences["energy_weight"]))
+        print ("Numeric Preference : ", numeric_preferences)
 
         try: 
             # recommender logic 
-            recommendation = recommend_Euclidean(input_track_ids, numeric_preferences)
+            recommendation = recommend_Euclidean_topk(input_track_ids, numeric_preferences)
         except ValueError as e:
-            return Response({"error": str(e)}, status=400)
+            messages.error(request, str(e))
+            return redirect(request.META.get('HTTP_REFERER', '/'))
         
         # get artists of the recommended track
-        artists = get_artists_list(recommendation)
+        artists = get_artists_list(recommendation[0])
 
         recommended_track = {
-            'trackId' : recommendation.track_id,
-            'trackName': recommendation.fixed_track_name,
+            'trackId' : recommendation[0].track_id,
+            'trackName': recommendation[0].fixed_track_name,
             'artists' :  artists
         }
 

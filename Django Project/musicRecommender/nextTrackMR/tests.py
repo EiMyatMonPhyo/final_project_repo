@@ -173,16 +173,17 @@ class recommenderLogicTest(TestCase):
         
         self.assertEqual(min_index,2)
 
-    # test if the Euclidean recommender output is Track obj
-    def test_recommenderLogicReturnsTrack(self):
-        input_tracks = ["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"]
-        input_preferences = {
-            "energy_weight" : 1.0,
-            "tempo_weight" : 1.2
-        }
-        result = recommend_Euclidean(input_tracks, input_preferences)
+    # # DELETED FUNCTION#
+    # # test if the Euclidean recommender output is Track obj
+    # def test_recommenderLogicReturnsTrack(self):
+    #     input_tracks = ["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"]
+    #     input_preferences = {
+    #         "energy_weight" : 1.0,
+    #         "tempo_weight" : 1.2
+    #     }
+    #     result = recommend_Euclidean(input_tracks, input_preferences)
 
-        self.assertIsInstance(result, Track)
+    #     self.assertIsInstance(result, Track)
 
     # test if get_top_tracks returns correct data
     def test_get_top_tracks_return_correct(self):
@@ -988,6 +989,27 @@ class frontendFunctionsTest(TestCase):
         self.assertEqual(len(artists), 2)   # check if the artists list has 2 elements.
         self.assertEqual(['Zendaya', 'Sofia Carson'], artists)      # check if artists in the list are correct.
 
+    def test_convert_pref_from_str_to_numerics_works_correct(self):
+        pref_mapping = {
+            "High": 1.2,
+            "Medium": 1.0,
+            "Low": 0.8
+        }
+        str_pref1 = {"energy_weight" : "High", "tempo_weight" : "Medium"}
+        str_pref2 = {"energy_weight" : "Medium", "tempo_weight" : "High"}
+        str_pref3 = {"energy_weight" : "Low", "tempo_weight" : "Low"}
+        str_prefs = [str_pref1, str_pref2, str_pref3]
+
+        expected1 = {"energy_weight" : 1.2, "tempo_weight" : 1.0}
+        expected2 = {"energy_weight" : 1.0, "tempo_weight" : 1.2}
+        expected3 = {"energy_weight" : 0.8, "tempo_weight" : 0.8}
+        expecteds = [expected1, expected2, expected3]
+
+        for p, e in zip(str_prefs, expecteds):
+            numeric_pref = convert_pref_from_str_to_numerics(pref_mapping, p)
+            self.assertEqual(numeric_pref, e)
+        
+        
     # test if the recommend function is working as expected
     def test_recommend_works(self):
         sessionVar = self.client.session

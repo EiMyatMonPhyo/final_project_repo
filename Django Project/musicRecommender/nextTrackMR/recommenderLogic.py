@@ -81,79 +81,79 @@ def get_track_index_with_minimum_distance(comparison_results):
     return min_index
     
   
-################### Euclidean model related (used in views.py) ############################
-def recommend_Euclidean(input_track_ids, input_preferences):
+# ################### Euclidean model related (used in views.py) ############################
+# def recommend_Euclidean(input_track_ids, input_preferences):
 
-    # for null input tracks
-    if not input_track_ids:
-        raise ValueError("No input tracks provided")
+#     # for null input tracks
+#     if not input_track_ids:
+#         raise ValueError("No input tracks provided")
     
-    # for null input preferences 
-    if input_preferences is None:
-        input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
+#     # for null input preferences 
+#     if input_preferences is None:
+#         input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
     
-    # print ("YOUR INPUTS ARE AS FOLLOWS : ")
-    # print ("input tracks : ")
+#     # print ("YOUR INPUTS ARE AS FOLLOWS : ")
+#     # print ("input tracks : ")
     
-    # for trackId in input_track_ids:
-        # print (trackId)
+#     # for trackId in input_track_ids:
+#         # print (trackId)
 
-    # print ("User Preference", input_preferences["energy_weight"], " energy weight , ", input_preferences["tempo_weight"], " tempo weight.")
-    # print ("==================================")
+#     # print ("User Preference", input_preferences["energy_weight"], " energy weight , ", input_preferences["tempo_weight"], " tempo weight.")
+#     # print ("==================================")
 
-    ########## recommender logic (Euclidean) ##############
+#     ########## recommender logic (Euclidean) ##############
 
-    # find finalized vectors of the input track ids in the database
-    input_vectors = get_track_vectors_from_database(input_track_ids)
-
-
-
-    # find average vector
-    avg_vector = np.mean(input_vectors, axis=0)      #column wise
-    # print (avg_vector)
+#     # find finalized vectors of the input track ids in the database
+#     input_vectors = get_track_vectors_from_database(input_track_ids)
 
 
 
-    # get preferences
-    energy_weight = input_preferences["energy_weight"]
-    tempo_weight = input_preferences["tempo_weight"]
+#     # find average vector
+#     avg_vector = np.mean(input_vectors, axis=0)      #column wise
+#     # print (avg_vector)
+
+
+
+#     # get preferences
+#     energy_weight = input_preferences["energy_weight"]
+#     tempo_weight = input_preferences["tempo_weight"]
     
-    # weighting with user preferences
-    target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
-    
-
-
-    # Euclidean (find the matching track)
-    # Find the other valid songs in the database (excluding input tracks)
-    all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
+#     # weighting with user preferences
+#     target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
     
 
 
-    # get the list of distances between each valid song and target vector
-    comparison_results = []     # comparison results to be stored in this array
-    # for every track (excluding the ones the user inputs), check the similarity with Euclidean
-    for track in all_tracks:        
-        vector = track.finalized_vector     # vector of the current track of the database
-        euclidean = calculate_Euclidean(target_vector, np.array(json.loads(vector)))
-        comparison_results.append(euclidean)        # store to the array
-    # print (comparison_results)
+#     # Euclidean (find the matching track)
+#     # Find the other valid songs in the database (excluding input tracks)
+#     all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
     
 
 
-    # get index of track with minimum distance
-    min_index = get_track_index_with_minimum_distance(comparison_results)
+#     # get the list of distances between each valid song and target vector
+#     comparison_results = []     # comparison results to be stored in this array
+#     # for every track (excluding the ones the user inputs), check the similarity with Euclidean
+#     for track in all_tracks:        
+#         vector = track.finalized_vector     # vector of the current track of the database
+#         euclidean = calculate_Euclidean(target_vector, np.array(json.loads(vector)))
+#         comparison_results.append(euclidean)        # store to the array
+#     # print (comparison_results)
     
 
 
-    # find the matching track's data in database
-    # print ("the matching track : ", all_tracks[min_index])      # the same index of all tracks list
-    track = all_tracks[min_index]
+#     # get index of track with minimum distance
+#     min_index = get_track_index_with_minimum_distance(comparison_results)
+    
+
+
+#     # find the matching track's data in database
+#     # print ("the matching track : ", all_tracks[min_index])      # the same index of all tracks list
+#     track = all_tracks[min_index]
 
 
  
-    # choose random track
-    # # track = Track.objects.order_by('?').first()
-    return track
+#     # choose random track
+#     # # track = Track.objects.order_by('?').first()
+#     return track
 
 
 """
