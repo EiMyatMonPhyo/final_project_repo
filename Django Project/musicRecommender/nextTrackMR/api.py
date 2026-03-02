@@ -24,8 +24,14 @@ def make_recommendation(request, recommend_function, use_pref=True):
        
         try:
             if use_pref:        # for Euclidean or Cosine only (Other models are for evaluation purpose and don't need preference for that)
-                input_preferences = serializer.validated_data.get('preferences') or {"energy_weight" : 1.0, "tempo_weight" : 1.0}
-        
+                input_preferences = serializer.validated_data.get('preferences')
+                if input_preferences:        # if pref is inputted, get the data
+                    input_preferences = {
+                        "energy_input" : input_preferences.get('energy'), 
+                        "tempo_input" : input_preferences.get('tempo')
+                    }
+                else:      # if pref is not inputted, set pref to None
+                    input_preferences = None
                 track = recommend_function(input_track_ids, input_preferences, k=k)
             else: 
                 track = recommend_function(input_track_ids, k=k)

@@ -116,21 +116,23 @@
 
                         <!-- Energy drop down -->
                         <div class="preference-container">
-                            <label for="energy_weight" class="preference-label">Energy</label>
-                            <select name="energy_weight" class="drop-down-box" onchange="this.form.submit()">
-                                <option value="High" {% if preferences.energy_weight == "High" %}selected {% endif %}>HIGH</option>
-                                <option value="Medium" {% if preferences.energy_weight == "Medium" %}selected {% endif %}>MEDIUM</option>
-                                <option value="Low" {% if preferences.energy_weight == "Low" %}selected {% endif %}>LOW</option>
+                            <label for="energy_pref" class="preference-label">Energy</label>
+                            <select name="energy_pref" class="drop-down-box" onchange="this.form.submit()">
+                                <option value="None" {% if preferences.energy_input == None %}selected {% endif %}>NONE</option> 
+                                <option value="High" {% if preferences.energy_input == "High" %}selected {% endif %}>HIGH</option>
+                                <option value="Medium" {% if preferences.energy_input == "Medium" %}selected {% endif %}>MEDIUM</option>
+                                <option value="Low" {% if preferences.energy_input == "Low" %}selected {% endif %}>LOW</option>
                             </select>
                         </div>
 
                         <!-- Tempo drop down -->
                         <div class="preference-container">
-                            <label for="tempo_weight" class="preference-label">Tempo</label>
-                            <select name="tempo_weight"  class="drop-down-box" onchange="this.form.submit()">
-                                <option value="High" {% if preferences.tempo_weight == "High" %}selected {% endif %}>HIGH</option>
-                                <option value="Medium" {% if preferences.tempo_weight == "Medium" %}selected {% endif %}>MEDIUM</option>
-                                <option value="Low" {% if preferences.tempo_weight == "Low" %}selected {% endif %}>LOW</option>
+                            <label for="tempo_pref" class="preference-label">Tempo</label>
+                            <select name="tempo_pref"  class="drop-down-box" onchange="this.form.submit()">
+                                <option value="None" {% if preferences.tempo_input == None %}selected {% endif %}>NONE</option> 
+                                <option value="High" {% if preferences.tempo_input == "High" %}selected {% endif %}>HIGH</option>
+                                <option value="Medium" {% if preferences.tempo_input == "Medium" %}selected {% endif %}>MEDIUM</option>
+                                <option value="Low" {% if preferences.tempo_input == "Low" %}selected {% endif %}>LOW</option>
                             </select>
                         </div>
 

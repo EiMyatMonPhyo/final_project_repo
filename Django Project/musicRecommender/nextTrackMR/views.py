@@ -30,7 +30,7 @@ def index(request):
     input_tracks = get_input_tracks_in_order(input_track_ids)
 
     recommended_track = request.session.get('recommended_track', None)
-    preferences = request.session.get('preferences', {'energy_weight': "Medium", 'tempo_weight': "Medium"})       #set to medium if nothing is selected
+    preferences = request.session.get('preferences', {'energy_input': None, 'tempo_input': None})       #set to None if nothing is selected
     print ("Current values : \n Input Tracks : " , input_tracks,"\n Recommended track : ", recommended_track,"\n Preference : ", preferences)
     return render(request, 'nextTrackMR/home.html', {'all_tracks': all_tracks,'input_tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
     
@@ -40,7 +40,7 @@ def searchTracks(request):
     input_track_ids = request.session.get('input_tracks', [])
     input_tracks = get_input_tracks_in_order(input_track_ids)
     recommended_track = request.session.get('recommended_track', None)
-    preferences = request.session.get('preferences', {'energy_weight': "Medium", 'tempo_weight': "Medium"})       #set to medium if nothing is selected
+    preferences = request.session.get('preferences', {'energy_input': None, 'tempo_input': None})       #set to medium if nothing is selected
 
     if request.method == 'GET':
         keyword = request.GET.get('q')  #get form input
@@ -89,12 +89,15 @@ def addTrack(request, track_id):
 def updatePreference(request):
     # create sesssion var for preferences if not done yet.
     if 'preferences' not in request.session:
-        request.session['preferences'] = {'energy_weight': "Medium", 'tempo_weight': "Medium"}
+        request.session['preferences'] = {'energy_input': "None", 'tempo_input': "None"}
 
     preferences = request.session['preferences'].copy()
 
-    preferences['energy_weight'] = request.POST['energy_weight']
-    preferences['tempo_weight'] = request.POST['tempo_weight']
+    energy = request.POST.get('energy_pref')
+    tempo = request.POST.get('tempo_pref')
+
+    preferences['energy_input'] = None if energy == "None" else energy
+    preferences['tempo_input'] = None if tempo == "None" else tempo
 
     # update to session storage
     request.session['preferences'] = preferences
@@ -119,12 +122,12 @@ def get_artists_list(recommendation):
     return list(artists)
 
 
-def convert_pref_from_str_to_numerics(pref_mapping, str_pref):
-    numeric_pref = {
-                    "energy_weight": pref_mapping[str_pref["energy_weight"]],
-                    "tempo_weight": pref_mapping[str_pref["tempo_weight"]],
-                }
-    return numeric_pref
+# def convert_pref_from_str_to_numerics(pref_mapping, str_pref):
+#     numeric_pref = {
+#                     "energy_weight": pref_mapping[str_pref["energy_weight"]],
+#                     "tempo_weight": pref_mapping[str_pref["tempo_weight"]],
+#                 }
+#     return numeric_pref
 
 
 def recommend(request):
@@ -136,38 +139,25 @@ def recommend(request):
     # input track ids are inputted.
     if input_track_ids: 
         
-
         # create session variable 'preferences' with default values (in case, user does not give any input for preferences) 
         if 'preferences' not in request.session:
-            request.session['preferences'] = {'energy_weight' : "Medium", 'tempo_weight': "Medium"} 
-        # get input track data from session storage
-        
+            request.session['preferences'] = {'energy_input' : None, 'tempo_input': None} 
         
 
         # get input user preference from session storage, change it to numerical number
         preferences = request.session['preferences']
 
-        # pref and its mapping to numerical range
-        pref_mapping = {
-            "High": 1.2,
-            "Medium": 1.0,
-            "Low": 0.8
-        }
-        # convert from str preference to numerical preferences
-        numeric_preferences = convert_pref_from_str_to_numerics(pref_mapping, preferences)
-
-        print ("Numeric Preference : ", numeric_preferences)
-
         try: 
             # recommender logic 
-            recommendation = recommend_Euclidean_topk(input_track_ids, numeric_preferences)
+            recommendation = recommend_Euclidean_topk(input_track_ids, preferences)
         except ValueError as e:
             messages.error(request, str(e))
             return redirect(request.META.get('HTTP_REFERER', '/'))
-        
+
         # get artists of the recommended track
         artists = get_artists_list(recommendation[0])
-
+        print ("YOUR TARGET PREF : ", "ENERGY : ", preferences["energy_input"], "TEMPO : ", preferences["tempo_input"])
+        print ("RECOMMENDED TRACK'S PREF : ", "ENERGY : ", recommendation[0].energy, "TEMPO", recommendation[0].tempo)
         recommended_track = {
             'trackId' : recommendation[0].track_id,
             'trackName': recommendation[0].fixed_track_name,

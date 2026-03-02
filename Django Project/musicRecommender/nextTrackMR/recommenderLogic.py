@@ -31,26 +31,26 @@ def get_track_vectors_from_database(input_track_ids):
     # print (input_vectors)
     return input_vectors
 
-"""
-    input : average vector (of all input tracks' vectors), input energy weight value, input tempo weight value
-    output : the weighted vector 
-    function : average vector is applied weighting with energy and tempo weight input, and return the resulting weighted vector
-"""
-def weight_vector(avg_vector, energy_weight, tempo_weight):
-    # index 1: energy
-    # print ("Before weighting energy : " , avg_vector[1])
-    avg_vector[1] = avg_vector[1] * energy_weight
-    # print ("After weighting energy : " , avg_vector[1])
+# """
+#     input : average vector (of all input tracks' vectors), input energy weight value, input tempo weight value
+#     output : the weighted vector 
+#     function : average vector is applied weighting with energy and tempo weight input, and return the resulting weighted vector
+# """
+# def weight_vector(avg_vector, energy_weight, tempo_weight):
+#     # index 1: energy
+#     # print ("Before weighting energy : " , avg_vector[1])
+#     avg_vector[1] = avg_vector[1] * energy_weight
+#     # print ("After weighting energy : " , avg_vector[1])
 
 
-    # index 4: tempo
-    # print ("Before weighting tempo : " , avg_vector[4])
-    avg_vector[4] = avg_vector[4] * tempo_weight
-    # print ("After weighting tempo : " , avg_vector[4])
+#     # index 4: tempo
+#     # print ("Before weighting tempo : " , avg_vector[4])
+#     avg_vector[4] = avg_vector[4] * tempo_weight
+#     # print ("After weighting tempo : " , avg_vector[4])
 
-    # this is now target vector
-    # print ("After weighting : ", avg_vector)
-    return avg_vector
+#     # this is now target vector
+#     # print ("After weighting : ", avg_vector)
+#     return avg_vector
 
 """
     input : two vectors
@@ -229,18 +229,51 @@ def reward_track_by_matching_artists(candidate_artists, input_artists_frequency)
     score_by_candidate_artist = score/sum_of_all_freq
     return score_by_candidate_artist
 
+"""
+    input : pref (pref input dict), eligible_tracks (the list of all tracks objects in database)
+    output : the list of eligible tracks after filtering based on preferences
+    function : take pref, filter based on the preferences, return the list of eligible track objects
+"""
+# pref filtering 
+def filter_tracks_by_pref(pref, eligible_tracks):
+    # get the data from dict
+    energy_input = pref.get("energy_input")    
+    tempo_input = pref.get("tempo_input")
+
+    # ranges for High, Medium, Low for energy and tempo
+    energy_range = {        # range defined in dict
+        'High' : (0.7, 1.0),      # pref as key , tuple as value
+        'Medium' : (0.3, 0.7),
+        'Low' : (0, 0.3)
+    }
+
+    tempo_range = {
+        'High' : (130, 200),
+        'Medium' : (100, 130),
+        'Low' : (0, 100)
+    }
+
+    # filtering based on energy and tempo pref input 
+    if energy_input:   # if energy_input exists, filter
+        eligible_tracks = eligible_tracks.filter(energy__range=energy_range[energy_input])        # based on input, filter the tracks to only include the tracks in input range
+
+    if tempo_input:     # if tempo_input exists, filter
+        eligible_tracks = eligible_tracks.filter(tempo__range=tempo_range[tempo_input])        # based on input, filter the tracks to only include the tracks in input range
+
+    return eligible_tracks
 
 
+"""
+    input : input_track_ids (the list of input track ids), input_preferences (the dictionary of preference input), k (the number recommendation to be made)
+    output : the list of recommended track objects
+    function : recommender logic using Euclidean
+"""
 ################### Euclidean model related (Used in api.py)############################
 def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
-
+    print("TEST START ----------------")
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
-    
-    # for null input preferences 
-    if input_preferences is None:
-        input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
     
     #list of artist ids of every input tracks (for artist similarity)
     artist_ids = get_artist_ids_list(input_track_ids)
@@ -257,31 +290,34 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
     avg_vector = np.mean(input_vectors, axis=0)      #column wise
     # print (avg_vector)
 
-    # get preferences
-    energy_weight = input_preferences["energy_weight"]
-    tempo_weight = input_preferences["tempo_weight"]
-    
-    # weighting with user preferences
-    target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
-
     # Euclidean (find the matching track)
     # Find the other valid songs in the database (excluding input tracks)
     all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
-    
+    eligible_tracks = all_tracks        # if not defined, later eligible_tracks may not exist (due to pref if cases)
+
+    # if the preference is inputted, filter the tracks based on input
+    if input_preferences: 
+        eligible_tracks = filter_tracks_by_pref(input_preferences, eligible_tracks)
+        
+    # if filtering is too strict and no track left, raise error
+    if not eligible_tracks.exists():
+        raise ValueError("No tracks match the given preferences. No recommendation Available")
+    print ("ELIGIBLE TRACK COUNT : ", len(eligible_tracks))
+
     # get the list of distances between each valid song and target vector
     comparison_results = []     # comparison results to be stored in this array
     
     euclidean_scores = [] # euclidean scores to be stored in this list, (needed to normalize with min-max normalization)
     # for every track (excluding the ones the user inputs), check the similarity with Euclidean
-    for t in all_tracks:        
+    for t in eligible_tracks:        
         vector = t.finalized_vector     # vector of the current track of the database
-        euclidean = calculate_Euclidean(target_vector, np.array(json.loads(vector)))
+        euclidean = calculate_Euclidean(avg_vector, np.array(json.loads(vector)))
         euclidean_scores.append(euclidean)
 
     # normalization of euclidean scores
     normalized_E_scores = normalize_Euclidean(euclidean_scores)
 
-    for index, t in enumerate(all_tracks):    
+    for index, t in enumerate(eligible_tracks):    
         normalized_euclidean =  normalized_E_scores[index]       
         # calculate artist similarity
         # get list of candidate artist ids
@@ -289,13 +325,13 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
         candidate_artists = list(links.values_list('artist_id', flat=True))     #candidate artist ids in a list
         artist_score = reward_track_by_matching_artists(candidate_artists, artist_frequency)       # get artist score
 
-        euclidean_weight = 0.55        # (80%)
-        artist_weight = 0.45        # (20%)
+        euclidean_weight = 0.75    # (80%)
+        artist_weight = 0.25      # (20%)
         final_score = normalized_euclidean * euclidean_weight + artist_score * artist_weight
 
 
         comparison_results.append((t, final_score))        # store to the array
-    print (comparison_results)
+    # print (comparison_results)
 
 
     top_tracks = get_top_tracks(comparison_results, k)
@@ -323,12 +359,6 @@ def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
-    
-
-    # for null input preferences 
-    if input_preferences is None:
-        input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
-
 
     #list of artist ids of every input tracks (for artist similarity)
     artist_ids = get_artist_ids_list(input_track_ids)
@@ -345,30 +375,30 @@ def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
 
     # find average vector
     avg_vector = np.mean(input_vectors, axis=0)      #column wise
-    # print (avg_vector)
-
-
-
-    # get preferences
-    energy_weight = input_preferences["energy_weight"]
-    tempo_weight = input_preferences["tempo_weight"]
     
-    # weighting with user preferences
-    target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
-
-
     # Find the other valid songs in the database (excluding input tracks)
     all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
-    
+    eligible_tracks = all_tracks
 
     
+    
+    # if the preference is inputted, filter the tracks based on input
+    if input_preferences: 
+        eligible_tracks = filter_tracks_by_pref(input_preferences, eligible_tracks)
+
+    # if filtering is too strict and no track left, raise error
+    if not eligible_tracks.exists():
+        raise ValueError("No tracks match the given preferences")
+
+
+
     # get the list of distances between each valid song and target vector
     comparison_results = []     # comparison results to be stored in this array
     # for every track (excluding the ones the user inputs), check the similarity with Euclidean
-    for t in all_tracks:    
+    for t in eligible_tracks:    
         # calculate cosine similarity
         vector = t.finalized_vector     # vector of the current track of the database
-        cosine = calculate_Cosine(target_vector, np.array(json.loads(vector)))
+        cosine = calculate_Cosine(avg_vector, np.array(json.loads(vector)))
 
         # calculate artist similarity
         # get list of candidate artist ids

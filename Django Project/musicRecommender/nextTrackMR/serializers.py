@@ -2,8 +2,9 @@ from rest_framework import serializers
 from .models import *
 
 class PreferenceSerializer(serializers.Serializer):
-    energy_weight = serializers.FloatField(required=False, min_value=0.5, max_value=1.5, default=1.0)
-    tempo_weight = serializers.FloatField(required=False, min_value=0.5, max_value=1.5, default=1.0)
+    choices = ['High', 'Medium', 'Low']
+    energy = serializers.ChoiceField(choices=choices, required=False)
+    tempo = serializers.ChoiceField(choices=choices, required=False)
 
 class RecommenderInputSerializer(serializers.Serializer):
     track_ids = serializers.ListField(child=serializers.CharField(required=True, allow_blank=False, max_length=22),min_length=1)
@@ -16,13 +17,30 @@ class TrackIdRecommendationSerializer(serializers.ModelSerializer):
 
 
 # example api input##
-{
-  "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2","5q21u5TzhSaJPslac3xce8", "5Klo65Y9uouLjNVDV3pqh7"],
-  "preferences": {
-    "energy_weight": 1.2,
-    "tempo_weight": 1.0
-  }
-}
+# {
+#   "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2","5q21u5TzhSaJPslac3xce8", "5Klo65Y9uouLjNVDV3pqh7"],
+#   "preferences": {
+#     "energy_weight": 1.2,
+#     "tempo_weight": 1.0
+#   }
+# }
+
+# new serializer input
+# {
+#   "track_ids": ["4qEoqyPbLYnLOii6mKlIjI", "5lz0NiPw32Gq4kMIUJvuw2","5q21u5TzhSaJPslac3xce8", "5Klo65Y9uouLjNVDV3pqh7"],
+#   "preferences": {
+#     "energy": "High",
+#     "tempo": "Low"
+#   }
+# }
+
+# {
+#   "track_ids": ["2hBJgz4Ye9MkkmBbaDTTKx", "4xkOaSrkexMciUUogZKVTS","7pFydJbDEToJHtvl6g579k"],
+#   "preferences": {
+#     "energy": "High",
+#     "tempo": "Low"
+#   }
+# }
 
 # feedback input sample
 # {
