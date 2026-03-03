@@ -22,7 +22,7 @@
                 
                 <!-- search bar -->
                 <form id="search-bar"  method="get" action="/search_tracks/">
-                    <input class="search-bar-input" type="text" name="q" placeholder="Search tracks ... " value="{{ request.GET.q}}">
+                    <input class="search-bar-input" type="text" name="q" placeholder="Search by tracks OR artists ... " value="{{ request.GET.q}}">
                     <button class="search-bar-btn" type="submit">Search</button>
                 </form>
             
@@ -42,7 +42,7 @@
                             {% for track in all_tracks %}
                                 <div class="music-info-container">
                                     <div class="music-info">
-                                        <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}</button></p>
+                                        <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}<span class="suggestion">Click the track title to play it on music player.</span></button></p>
                                         <p>
                                         {% for artist in track.artist_set.all %}
                                             {{ artist.artist_name }}
@@ -63,12 +63,8 @@
                         {% endif %}
                     </div>
                 </div>
-                <p>To play the music on music player, <br> Click any track title or Get recommendation first.</p>
-                <iframe 
-                    id="music-player" src="{% if recommended_track %}https://open.spotify.com/embed/track/{{recommended_track.trackId}}{% else %}{% endif %}" frameborder="0">
-                </iframe>
-
-            </div>
+                <!-- <p>To play the music on music player, <br> Click any track title or Get recommendation first.</p> -->
+            </div>  
             
             <!-- right side -->
             <div id="right-side-section">
@@ -80,7 +76,7 @@
                             {% for track in input_tracks %}
                             <div class="music-info-container">
                                 <div class="music-info" style="width: 85%">
-                                    <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}</button></p>
+                                    <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}<span class="suggestion">Click the track title to play it on music player.</span></button></p>
                                     <p>
                                     {% for artist in track.artist_set.all %}
                                         {{ artist.artist_name }}
@@ -153,7 +149,12 @@
                     <!-- track details -->
                     <div id="recom-track-detail-container">
                         {% if recommended_track %}
-                            <p class="track-detail-text"><span class="track-title-text">{{recommended_track.trackName}}</span> <br> by
+                            <p class="track-detail-text">
+                                <button class="music-play-btn" style="color: #0D1B2A;" onclick="playTrack('{{ recommended_track.trackId }}')">
+                                    <span class="track-title-text">{{recommended_track.trackName}}</span> 
+                                    <span class="suggestion">Click the track title to play it on music player.</span>
+                                </button> 
+                                <br> by
                                 <span class="artist-name-text">
                                 {% for artist in recommended_track.artists %}
                                     {{ artist }} 
@@ -174,7 +175,19 @@
                 </div>
             </div>
         </div>
-
+        
+        <iframe 
+            id="music-player" 
+            src="{% if recommended_track %}
+                    https://open.spotify.com/embed/track/{{ recommended_track.trackId }}
+                {% elif all_tracks %}
+                    https://open.spotify.com/embed/track/{{ all_tracks.0.track_id }}
+                {% else %}
+        
+                {% endif %}" 
+            frameborder="0">
+        </iframe>
+        
         <script>
             function playTrack(trackId) {
                 let music_player = document.getElementById('music-player');
