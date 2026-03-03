@@ -270,7 +270,7 @@ def filter_tracks_by_pref(pref, eligible_tracks):
 """
 ################### Euclidean model related (Used in api.py)############################
 def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
-    print("TEST START ----------------")
+    print("------------------EUCLIDEAN MODEL------------------")
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
@@ -325,8 +325,8 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
         candidate_artists = list(links.values_list('artist_id', flat=True))     #candidate artist ids in a list
         artist_score = reward_track_by_matching_artists(candidate_artists, artist_frequency)       # get artist score
 
-        euclidean_weight = 0.75    # (80%)
-        artist_weight = 0.25      # (20%)
+        euclidean_weight = 0.75    # (75%)
+        artist_weight = 0.25      # (25%)
         final_score = normalized_euclidean * euclidean_weight + artist_score * artist_weight
 
 
@@ -356,6 +356,8 @@ def calculate_Cosine(vector1, vector2):
 
 # Cosine similarity based recommendation logic
 def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
+    print("------------------COSINES MODEL------------------")
+
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
@@ -389,6 +391,7 @@ def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
     # if filtering is too strict and no track left, raise error
     if not eligible_tracks.exists():
         raise ValueError("No tracks match the given preferences")
+    print ("ELIGIBLE TRACK COUNT : ", len(eligible_tracks))
 
 
 
@@ -406,8 +409,8 @@ def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
         candidate_artists = list(links.values_list('artist_id', flat=True))     #candidate artist ids in a list
         artist_score = reward_track_by_matching_artists(candidate_artists, artist_frequency)       # get artist score
 
-        cosine_weight = 0.55        # (80%)
-        artist_weight = 0.45       # (20%)
+        cosine_weight = 0.75        # (75%)
+        artist_weight = 0.25       # (25%)
         final_score = cosine * cosine_weight + artist_score * artist_weight
 
         comparison_results.append((t,final_score))        # store (track_id, its result) tuple to the array

@@ -122,14 +122,6 @@ def get_artists_list(recommendation):
     return list(artists)
 
 
-# def convert_pref_from_str_to_numerics(pref_mapping, str_pref):
-#     numeric_pref = {
-#                     "energy_weight": pref_mapping[str_pref["energy_weight"]],
-#                     "tempo_weight": pref_mapping[str_pref["tempo_weight"]],
-#                 }
-#     return numeric_pref
-
-
 def recommend(request):
     print("recommend")
 
@@ -149,7 +141,7 @@ def recommend(request):
 
         try: 
             # recommender logic 
-            recommendation = recommend_Euclidean_topk(input_track_ids, preferences)
+            recommendation = recommend_Cosine_topk(input_track_ids, preferences)
         except ValueError as e:
             messages.error(request, str(e))
             return redirect(request.META.get('HTTP_REFERER', '/'))
