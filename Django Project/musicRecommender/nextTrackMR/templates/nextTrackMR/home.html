@@ -28,6 +28,7 @@
             
                 <!-- display all available tracks -->
                 <div id="all-tracks-section">
+                    <!-- all tracks section -->
                     <div id="all-tracks-title">
                         {% if request.GET.q %}
                             <h2>Your Search Results</h2>
@@ -35,32 +36,11 @@
                             <a href="/" id="reset-tracks-btn">Show All Tracks</a>
                         {% else %}
                             <h2>All Tracks</h2>
-                    {% endif %}
-                    </div>
-                    <div class="scrollable-list-container">
-                        {% if all_tracks %}
-                            {% for track in all_tracks %}
-                                <div class="music-info-container">
-                                    <div class="music-info">
-                                        <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}<span class="suggestion">Click the track title to play it on music player.</span></button></p>
-                                        <p>
-                                        {% for artist in track.artist_set.all %}
-                                            {{ artist.artist_name }}
-                                            {% if not forloop.last %}
-                                                , 
-                                            {% endif %}
-                                        {% endfor %}
-                                        </p>
-                                    </div>
-                                    <div class="music-info-btn-container">
-                                        <!-- add btn -->
-                                        <button class="music-info-btn" onclick="window.location.href='/add_to_inputs/{{ track.track_id }}/'">Add</button>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="msg-text">No Search Results found</p>
                         {% endif %}
+                    </div>
+                    <!-- all tracks scroller -->
+                    <div class="scrollable-list-container" id="all-tracks-list">
+                        {% include "nextTrackMR/all_tracks.html" %}
                     </div>
                 </div>
                 <!-- <p>To play the music on music player, <br> Click any track title or Get recommendation first.</p> -->
@@ -71,49 +51,21 @@
                 <!-- selected tracks -->
                 <div id="playlist-section">
                     <h2>Your playlist</h2>
-                    <div class="scrollable-list-container">
-                        {% if input_tracks %}
-                            {% for track in input_tracks %}
-                            <div class="music-info-container">
-                                <div class="music-info" style="width: 85%">
-                                    <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}<span class="suggestion">Click the track title to play it on music player.</span></button></p>
-                                    <p>
-                                    {% for artist in track.artist_set.all %}
-                                        {{ artist.artist_name }}
-                                        {% if not forloop.last %}
-                                            , 
-                                        {% endif %}
-                                    {% endfor %}
-                                    </p>
-                                </div>
-                                <div class="music-info-btn-container" >
-                                    <!-- add btn -->
-                                    <button class="music-info-btn" onclick="window.location.href='/remove_from_inputs/{{ track.track_id }}/'">Remove</button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <h3 class="msg-text">An instruction for you</h3>
-                            <ul class="msg-text">
-                                <li>Add your favourite tracks to the playlist</li>
-                                <li>Select Energy & Tempo preferences settings</li>
-                                <li>Click 'Recommend' button to get your recommendation</li>
-                            </ul>
-                            </p>
-                        {% endif %}
+                    <div class="scrollable-list-container" id="input-tracks-list">
+                        {% include "nextTrackMR/input_tracks.html "%}
                     </div>
                 </div>
 
 
                 <!-- div for input user preference -->
                 <div id="pref-rec-btn-container">
-                    <form action="/update_preference/" method="POST" id="preferences-container">
+                    <form method="POST" id="preferences-container">
                         {% csrf_token %}
 
                         <!-- Energy drop down -->
                         <div class="preference-container">
                             <label for="energy_pref" class="preference-label">Energy</label>
-                            <select name="energy_pref" class="drop-down-box" onchange="this.form.submit()">
+                            <select id="energy_pref" name="energy_pref" class="drop-down-box">
                                 <option value="None" {% if preferences.energy_input == None %}selected {% endif %}>NONE</option> 
                                 <option value="High" {% if preferences.energy_input == "High" %}selected {% endif %}>HIGH</option>
                                 <option value="Medium" {% if preferences.energy_input == "Medium" %}selected {% endif %}>MEDIUM</option>
@@ -124,7 +76,7 @@
                         <!-- Tempo drop down -->
                         <div class="preference-container">
                             <label for="tempo_pref" class="preference-label">Tempo</label>
-                            <select name="tempo_pref"  class="drop-down-box" onchange="this.form.submit()">
+                            <select id="tempo_pref" name="tempo_pref"  class="drop-down-box">
                                 <option value="None" {% if preferences.tempo_input == None %}selected {% endif %}>NONE</option> 
                                 <option value="High" {% if preferences.tempo_input == "High" %}selected {% endif %}>HIGH</option>
                                 <option value="Medium" {% if preferences.tempo_input == "Medium" %}selected {% endif %}>MEDIUM</option>
@@ -189,9 +141,68 @@
         </iframe>
         
         <script>
-            function playTrack(trackId) {
+            function playTrack(trackId){
                 let music_player = document.getElementById('music-player');
                 music_player.src = `https://open.spotify.com/embed/track/${trackId}`;
+            }
+
+            // gets called when add track button is clicked
+            function addTrack(trackId){
+                // this is added due to Search function not working correctly. 
+                const searchQuery = document.querySelector('.search-bar-input').value;      // input data in search bar
+                fetch(`/add_to_inputs/${trackId}/?q=${encodeURIComponent(searchQuery)}`)        // encodeURIComponent : replace special characters
+                .then(response => response.json())
+                .then(data => {
+                    // replace the all-tracks section
+                    document.getElementById("all-tracks-list").innerHTML = data.all_tracks_html;
+                    
+                    // replace "Your Playlist" section
+                    document.getElementById("input-tracks-list").innerHTML = data.input_tracks_html;
+                })
+                .catch(error => console.error("Error:", error));
+            }
+
+            function removeTrack(trackId){
+                // this is added due to Search function not working correctly. 
+                const searchQuery = document.querySelector('.search-bar-input').value;      // input data in search bar
+                fetch(`/remove_from_inputs/${trackId}/?q=${encodeURIComponent(searchQuery)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // replace the all-tracks section
+                    document.getElementById("all-tracks-list").innerHTML = data.all_tracks_html;
+                    
+                    // replace "Your Playlist" section
+                    document.getElementById("input-tracks-list").innerHTML = data.input_tracks_html;
+                })
+                .catch(error => console.error("Error: ", error))
+            }
+
+            // csrf token from frontend (to be passed to backend via post header)
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // event listener for energy and tempo dropdown 
+            document.getElementById('energy_pref').addEventListener('change', updatePreference);
+            document.getElementById('tempo_pref').addEventListener('change', updatePreference);
+
+            // update preference 
+            function updatePreference(){
+                
+                // form data passed from frontend 
+                var formData = new FormData(document.getElementById('preferences-container'));
+                fetch("/update_preference/", {
+                    method: "POST",
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('energy_pref').value = data.energy_input ?? "None";
+                    document.getElementById('tempo_pref').value = data.tempo_input ?? "None";
+                    console.log("preferences saved!")
+                })
+                .catch(error => console.error("Error updating preferences:", error));
             }
         </script>
         

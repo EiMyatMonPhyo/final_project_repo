@@ -1,0 +1,30 @@
+
+{% if input_tracks %}
+    {% for track in input_tracks %}
+    <div class="music-info-container">
+        <div class="music-info" style="width: 85%">
+            <p><button class="music-play-btn" onclick="playTrack('{{ track.track_id }}')">{{track.fixed_track_name}}<span class="suggestion">Click the track title to play it on music player.</span></button></p>
+            <p>
+            {% for artist in track.artist_set.all %}
+                {{ artist.artist_name }}
+                {% if not forloop.last %}
+                    , 
+                {% endif %}
+            {% endfor %}
+            </p>
+        </div>
+        <div class="music-info-btn-container" >
+            <!-- add btn -->
+            <button class="music-info-btn" onclick="removeTrack('{{track.track_id}}')">Remove</button>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <h3 class="msg-text">An instruction for you</h3>
+    <ul class="msg-text">
+        <li>Add your favourite tracks to the playlist</li>
+        <li>Select Energy & Tempo preferences settings</li>
+        <li>Click 'Recommend' button to get your recommendation</li>
+    </ul>
+    </p>
+{% endif %}

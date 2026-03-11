@@ -2,6 +2,8 @@ from django.shortcuts import render
 from django.db.models import Case, When, Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
+from django.http import JsonResponse
 from django.contrib import messages
 from .models import *
 from .recommenderLogic import *
@@ -9,6 +11,7 @@ from .recommenderLogic import *
 # fetching track data from Spotify API
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials 
+
 
 # get the input tracks from db, based on the ipnut_tracks order.
 def get_input_tracks_in_order(input_track_ids):
@@ -20,6 +23,44 @@ def get_input_tracks_in_order(input_track_ids):
     # Fetch the records and order them using Case and When
     input_tracks = Track.objects.filter(track_id__in=input_track_ids).order_by(Case(*whens))
     return list(input_tracks)
+
+
+# get all the tracks in the database to display them
+def getAllTracks(input_track_ids):
+
+    # get all the tracks with their artists without the tracks already selected, Order the tracks by its fixed track name
+    tracks = Track.objects.all().exclude(track_id__in = input_track_ids).prefetch_related('artist_set').order_by('fixed_track_name')
+ 
+    return list(tracks)
+
+# update left side's All Tracks section with updated list of all tracks (AJAX, partial html update for asynchoronous service)
+def update_all_tracks_html(request, search_keyword):
+    # get all_tracks to send json data to frontend. (update for all Tracks section)
+    
+    if search_keyword != '':       # if anything is typed in the form
+        searchResults = Track.objects.filter(
+            Q(fixed_track_name__icontains=search_keyword) |        # track name filtering
+            Q(artist__artist_name__icontains=search_keyword)       # artist name filtering
+        ).exclude(  
+            track_id__in=request.session['input_tracks']      # no input id included
+        ).distinct()            # only distinct, no duplicate
+        tracks_list_shown = searchResults
+    else:
+    
+        all_tracks = getAllTracks(request.session['input_tracks'])
+        tracks_list_shown = all_tracks
+    all_tracks_html = render_to_string("nextTrackMR/all_tracks.html", {"all_tracks": tracks_list_shown}, request=request)
+    
+    return all_tracks_html
+
+# update right side's Your Playlist section with updated list of input tracks (AJAX, partial html update for asynchoronous service)
+def update_input_tracks_html(request):
+    # get input tracks data for frontend (update for "Your Playlist" section)
+    input_track_ids = request.session.get('input_tracks', [])
+    input_tracks = get_input_tracks_in_order(input_track_ids)
+    input_tracks_html = render_to_string("nextTrackMR/input_tracks.html", {"input_tracks": input_tracks}, request=request)
+    
+    return input_tracks_html
 
 # Create your views here.
 def index(request):
@@ -58,13 +99,6 @@ def searchTracks(request):
         return render(request, 'nextTrackMR/home.html', {'all_tracks': searchResults,'input_tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
 
 
-# get all the tracks in the database to display them
-def getAllTracks(input_track_ids):
-
-    # get all the tracks with their artists without the tracks already selected, Order the tracks by its fixed track name
-    tracks = Track.objects.all().exclude(track_id__in = input_track_ids).prefetch_related('artist_set').order_by('fixed_track_name')
- 
-    return list(tracks)
 
 
 # add track 
@@ -82,7 +116,13 @@ def addTrack(request, track_id):
         request.session.modified = True
 
     print (request.session['input_tracks'])
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    search_keyword = request.GET.get('q')  #get form url
+
+    response_to_frontend = {
+                            "all_tracks_html": update_all_tracks_html(request, search_keyword),
+                            "input_tracks_html": update_input_tracks_html(request)
+                            }
+    return JsonResponse(response_to_frontend)
 
 
 #  preference settings
@@ -102,8 +142,7 @@ def updatePreference(request):
     # update to session storage
     request.session['preferences'] = preferences
     request.session.modified = True
-    
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    return JsonResponse(preferences)
     
         
 # remove track
@@ -113,7 +152,14 @@ def removeTrack(request, track_id):
             if id == track_id:     #remove the matching track
                 request.session['input_tracks'].remove(id)
                 request.session.modified = True
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    search_keyword = request.GET.get('q')  #get form url
+
+    response_to_frontend = {
+                            "all_tracks_html": update_all_tracks_html(request, search_keyword),
+                            "input_tracks_html": update_input_tracks_html(request)
+                            }
+    return JsonResponse(response_to_frontend)
 
 # get artists of the recommended track
 def get_artists_list(recommendation):
