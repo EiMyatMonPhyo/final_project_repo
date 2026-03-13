@@ -21,7 +21,7 @@
             <div id="left-side-section">
                 
                 <!-- search bar -->
-                <form id="search-bar"  method="get" action="/search_tracks/">
+                <form id="search-bar" action="#" method="GET">
                     <input class="search-bar-input" type="text" name="q" placeholder="Search by tracks OR artists ... " value="{{ request.GET.q}}">
                     <button class="search-bar-btn" type="submit">Search</button>
                 </form>
@@ -33,7 +33,7 @@
                         {% if request.GET.q %}
                             <h2>Your Search Results</h2>
                             <!-- Show reset button only if there is a search query -->
-                            <a href="/" id="reset-tracks-btn">Show All Tracks</a>
+                            <a href="#" id="reset-tracks-btn">Show All Tracks</a>
                         {% else %}
                             <h2>All Tracks</h2>
                         {% endif %}
@@ -43,7 +43,6 @@
                         {% include "nextTrackMR/all_tracks.html" %}
                     </div>
                 </div>
-                <!-- <p>To play the music on music player, <br> Click any track title or Get recommendation first.</p> -->
             </div>  
             
             <!-- right side -->
@@ -52,7 +51,7 @@
                 <div id="playlist-section">
                     <h2>Your playlist</h2>
                     <div class="scrollable-list-container" id="input-tracks-list">
-                        {% include "nextTrackMR/input_tracks.html "%}
+                        {% include "nextTrackMR/input_tracks.html"%}
                     </div>
                 </div>
 
@@ -87,7 +86,7 @@
                     </form>
 
                     <!-- recommend btn -->
-                    <button onclick="window.location.href='/recommend'" id="recommend-btn">Recommend</button>
+                    <button onclick="recommend()" id="recommend-btn">Recommend</button>
 
                 </div>
                 
@@ -100,29 +99,7 @@
 
                     <!-- track details -->
                     <div id="recom-track-detail-container">
-                        {% if recommended_track %}
-                            <p class="track-detail-text">
-                                <button class="music-play-btn" style="color: #0D1B2A;" onclick="playTrack('{{ recommended_track.trackId }}')">
-                                    <span class="track-title-text">{{recommended_track.trackName}}</span> 
-                                    <span class="suggestion">Click the track title to play it on music player.</span>
-                                </button> 
-                                <br> by
-                                <span class="artist-name-text">
-                                {% for artist in recommended_track.artists %}
-                                    {{ artist }} 
-                                    {% if not forloop.last %}
-                                    ,
-                                    {% endif %}
-                                {% endfor %}
-                                </span>
-                            </p>
-                            <p>Click to Listen on Spotify
-                                <a style="overflow-wrap: break-word;" href="https://open.spotify.com/track/{{recommended_track.trackId}}">https://open.spotify.com/track/{{recommended_track.trackId}}</a>
-                            </p>
-                        {% else %}
-                            <p class="msg-text" style="text-align: center; font-weight: bolder; font-size:xx-large">No recommendation yet.</p>
-                            <p class="msg-text" style="text-align: left;">To get a recommendation, please select the tracks and add them to the playlist, change the preference settings and click 'Recommend' button.</p>
-                        {% endif %}
+                        {% include "nextTrackMR/recommendation.html "%}
                     </div>  
                 </div>
             </div>
@@ -141,6 +118,7 @@
         </iframe>
         
         <script>
+            console.log("JAVASCRIPT LOADING")
             function playTrack(trackId){
                 let music_player = document.getElementById('music-player');
                 music_player.src = `https://open.spotify.com/embed/track/${trackId}`;
@@ -148,6 +126,7 @@
 
             // gets called when add track button is clicked
             function addTrack(trackId){
+                console.log("ADDING")
                 // this is added due to Search function not working correctly. 
                 const searchQuery = document.querySelector('.search-bar-input').value;      // input data in search bar
                 fetch(`/add_to_inputs/${trackId}/?q=${encodeURIComponent(searchQuery)}`)        // encodeURIComponent : replace special characters
@@ -203,6 +182,59 @@
                     console.log("preferences saved!")
                 })
                 .catch(error => console.error("Error updating preferences:", error));
+            }
+
+            function recommend(){
+                fetch("/recommend/")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    document.getElementById('recom-track-detail-container').innerHTML = data.recommendation_html;
+                })
+                .catch(error => console.error("Error finding recommendation: ", error))
+            }
+        
+            document.getElementById('all-tracks-title').addEventListener('click', function(e) {
+                if (e.target && e.target.id === 'reset-tracks-btn') {
+                    e.preventDefault();
+                    resetAllTracks();
+                }
+            });
+
+            // show all tracks
+            function resetAllTracks(){
+                fetch ("/reset_all_tracks/")
+                .then(response => response.json())
+                .then(data => {
+                    // replace the all-tracks section
+                    document.getElementById("all-tracks-list").innerHTML = data.all_tracks_html;
+                    document.getElementById("all-tracks-title").innerHTML = "<h2>All Tracks</h2>";     // change title
+                    document.querySelector('.search-bar-input').value = '';     //clear search bar
+                    // history.pushState(null, '', '/');  // the URL shows "/"
+                })
+                .catch(error => console.error("Error resetting tracks:", error));
+            }
+
+            // search tracks
+            document.getElementById('search-bar').addEventListener('submit', function(e){
+                console.log("searching...")
+                e.preventDefault();
+                searchTracks();
+            })
+
+            function searchTracks(){
+                searchQuery = document.querySelector('.search-bar-input').value;        // user input keyword
+                fetch(`/search_tracks/?q=${encodeURIComponent(searchQuery)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // replace the all-tracks section
+                    document.getElementById("all-tracks-list").innerHTML = data.search_tracks_html;
+                    document.getElementById("all-tracks-title").innerHTML = '<h2>Your Search Results</h2><a href="#" id="reset-tracks-btn">Show All Tracks</a>'
+                })
+                .catch(error => console.error("Error searching tracks:", error));
             }
         </script>
         

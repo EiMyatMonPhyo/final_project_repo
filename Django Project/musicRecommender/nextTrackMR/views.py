@@ -34,7 +34,7 @@ def getAllTracks(input_track_ids):
     return list(tracks)
 
 # update left side's All Tracks section with updated list of all tracks (AJAX, partial html update for asynchoronous service)
-def update_all_tracks_html(request, search_keyword):
+def update_all_tracks_html(request, search_keyword = ''):
     # get all_tracks to send json data to frontend. (update for all Tracks section)
     
     if search_keyword != '':       # if anything is typed in the form
@@ -42,12 +42,12 @@ def update_all_tracks_html(request, search_keyword):
             Q(fixed_track_name__icontains=search_keyword) |        # track name filtering
             Q(artist__artist_name__icontains=search_keyword)       # artist name filtering
         ).exclude(  
-            track_id__in=request.session['input_tracks']      # no input id included
+            track_id__in=request.session.get('input_tracks', [])      # no input id included
         ).distinct()            # only distinct, no duplicate
         tracks_list_shown = searchResults
     else:
     
-        all_tracks = getAllTracks(request.session['input_tracks'])
+        all_tracks = getAllTracks(request.session.get('input_tracks', []))
         tracks_list_shown = all_tracks
     all_tracks_html = render_to_string("nextTrackMR/all_tracks.html", {"all_tracks": tracks_list_shown}, request=request)
     
@@ -77,26 +77,12 @@ def index(request):
     
 
 def searchTracks(request):
-    # create input_tracks sessionVar if not exists, get value in it.
-    input_track_ids = request.session.get('input_tracks', [])
-    input_tracks = get_input_tracks_in_order(input_track_ids)
-    recommended_track = request.session.get('recommended_track', None)
-    preferences = request.session.get('preferences', {'energy_input': None, 'tempo_input': None})       #set to medium if nothing is selected
+   
+    keyword = request.GET.get('q')  #get form input
+    return JsonResponse({
+        "search_tracks_html" : update_all_tracks_html(request, keyword)
+    })
 
-    if request.method == 'GET':
-        keyword = request.GET.get('q')  #get form input
-        if keyword != '':       # if anything is typed in the form
-            searchResults = Track.objects.filter(
-                Q(fixed_track_name__icontains=keyword) |        # track name filtering
-                Q(artist__artist_name__icontains=keyword)       # artist name filtering
-            ).exclude(  
-                track_id__in=input_track_ids        # no input id included
-            ).distinct()            # only distinct, no duplicate
-        else:
-            searchResults = getAllTracks(input_track_ids)
-        
-    
-        return render(request, 'nextTrackMR/home.html', {'all_tracks': searchResults,'input_tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
 
 
 
@@ -189,8 +175,7 @@ def recommend(request):
             # recommender logic 
             recommendation = recommend_Cosine_topk(input_track_ids, preferences)
         except ValueError as e:
-            messages.error(request, str(e))
-            return redirect(request.META.get('HTTP_REFERER', '/'))
+            return JsonResponse({"error": str(e)}, status=400)
 
         # get artists of the recommended track
         artists = get_artists_list(recommendation[0])
@@ -205,11 +190,24 @@ def recommend(request):
         print ("recommended : ",recommended_track)
 
         request.session['recommended_track'] = recommended_track            # use session to store recommended track
+        request.session.modified = True
 
         print(recommended_track['trackId'], "& ", recommended_track['trackName'] )
         for artist in recommended_track['artists']:
             print ("artist : ", artist)
-    else:   # no input tracks are selected yet & recommend btn is clicked. show Error msg.
-        messages.error(request, "Add tracks to playlist before recommendation.")
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+        
+        recommendation_html = render_to_string("nextTrackMR/recommendation.html", {"recommended_track": recommended_track}, request=request)
+        response_to_frontend = {
+            "recommendation_html": recommendation_html
+        }
+        return JsonResponse(response_to_frontend)
 
+    else:   # no input tracks are selected yet & recommend btn is clicked. show Error msg.
+        return JsonResponse({"error": "Add tracks to playlist before recommendation."}, status=400)
+
+# for "show all tracks" btn clicked
+def reset_all_tracks (request):
+    response_to_frontend = {
+                            "all_tracks_html": update_all_tracks_html(request)
+                            }
+    return JsonResponse(response_to_frontend)

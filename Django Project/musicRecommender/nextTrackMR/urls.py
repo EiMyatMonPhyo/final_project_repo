@@ -9,7 +9,7 @@ urlpatterns = [
     path('recommend/', views.recommend, name='recommend_track'),
     path('update_preference/', views.updatePreference, name='update_preference'),
     path('search_tracks/', views.searchTracks, name='search_tracks'),
-
+    path('reset_all_tracks/', views.reset_all_tracks, name='reset_all_tracks'),
     path('api/recommend/', api.recommendTrackId, name='recommend_track_api'),
 
     # baseline

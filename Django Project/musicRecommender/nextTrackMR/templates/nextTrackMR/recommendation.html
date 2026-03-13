@@ -1,0 +1,23 @@
+{% if recommended_track %}
+    <p class="track-detail-text">
+        <button class="music-play-btn" style="color: #0D1B2A;" onclick="playTrack('{{ recommended_track.trackId }}')">
+            <span class="track-title-text">{{recommended_track.trackName}}</span> 
+            <span class="suggestion">Click the track title to play it on music player.</span>
+        </button> 
+        <br> by
+        <span class="artist-name-text">
+        {% for artist in recommended_track.artists %}
+            {{ artist }} 
+            {% if not forloop.last %}
+            ,
+            {% endif %}
+        {% endfor %}
+        </span>
+    </p>
+    <p>Click to Listen on Spotify
+        <a style="overflow-wrap: break-word;" href="https://open.spotify.com/track/{{recommended_track.trackId}}">https://open.spotify.com/track/{{recommended_track.trackId}}</a>
+    </p>
+{% else %}
+    <p class="msg-text" style="text-align: center; font-weight: bolder; font-size:xx-large">No recommendation yet.</p>
+    <p class="msg-text" style="text-align: left;">To get a recommendation, please select the tracks and add them to the playlist, change the preference settings and click 'Recommend' button.</p>
+{% endif %}
