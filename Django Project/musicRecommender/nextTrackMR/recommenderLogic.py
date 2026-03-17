@@ -358,9 +358,12 @@ def calculate_Cosine(vector1, vector2):
 def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
     print("------------------COSINES MODEL------------------")
 
+    valid_pref = ['High', 'Medium', 'Low']
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
+    
+  
 
     #list of artist ids of every input tracks (for artist similarity)
     artist_ids = get_artist_ids_list(input_track_ids)
@@ -386,6 +389,16 @@ def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
     
     # if the preference is inputted, filter the tracks based on input
     if input_preferences: 
+        energy = input_preferences.get("energy_input")
+        tempo = input_preferences.get("tempo_input")
+
+        # check if input_pref energy and tempo are valid values
+        if energy and energy not in valid_pref:
+            raise ValueError("Invalid energy preference")
+
+        if tempo and tempo not in valid_pref:
+            raise ValueError("Invalid tempo preference")
+
         eligible_tracks = filter_tracks_by_pref(input_preferences, eligible_tracks)
 
     # if filtering is too strict and no track left, raise error

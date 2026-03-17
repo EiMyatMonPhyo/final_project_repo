@@ -36,8 +36,8 @@ def getAllTracks(input_track_ids):
 # update left side's All Tracks section with updated list of all tracks (AJAX, partial html update for asynchoronous service)
 def update_all_tracks_html(request, search_keyword = ''):
     # get all_tracks to send json data to frontend. (update for all Tracks section)
-    
-    if search_keyword != '':       # if anything is typed in the form
+        
+    if search_keyword:       # if anything is typed in the form
         searchResults = Track.objects.filter(
             Q(fixed_track_name__icontains=search_keyword) |        # track name filtering
             Q(artist__artist_name__icontains=search_keyword)       # artist name filtering
@@ -46,7 +46,6 @@ def update_all_tracks_html(request, search_keyword = ''):
         ).distinct()            # only distinct, no duplicate
         tracks_list_shown = searchResults
     else:
-    
         all_tracks = getAllTracks(request.session.get('input_tracks', []))
         tracks_list_shown = all_tracks
     all_tracks_html = render_to_string("nextTrackMR/all_tracks.html", {"all_tracks": tracks_list_shown}, request=request)

@@ -1,6 +1,6 @@
 import html
 
-from django.test import TestCase, Client
+from django.test import TestCase, Client, RequestFactory
 from django.urls import reverse
 from django.contrib.messages import get_messages
 from rest_framework.test import APITestCase
@@ -925,8 +925,8 @@ class frontendFunctionsTest(TestCase):
         )
         self.trackCollab = TrackFactory.create(
             track_id='uvabcklmnopqrstdefghij',
-            track_name='random song 1 by Sofia Carson & Zendaya', 
-            fixed_track_name = 'random song 1 by Sofia Carson & Zendaya',
+            track_name='random song 1 by Sofia Carson and Zendaya', 
+            fixed_track_name = 'random song 1 by Sofia Carson and Zendaya',
             energy = 0.2,     #low
             tempo = 140.6,        # high
             finalized_vector = "[0.7450826033928375, 1.083544620308554, 1.0684725534549997, 0.4721228022873516, 0.41189189895413475, 0.0, 1.0561951260398548]"
@@ -972,6 +972,55 @@ class frontendFunctionsTest(TestCase):
         self.assertEqual(len(no_tracks), 0)
         self.assertEqual(type(no_tracks), list)
 
+    
+
+    # test if getAllTracks work correctly
+    def test_getAllTracks_correct(self):
+        input_track_ids = [self.track4.track_id]
+
+        all_tracks = getAllTracks(input_track_ids)
+
+        self.assertNotIn(self.track4, all_tracks)       # track in input list is not included
+        self.assertEqual(all_tracks, [self.track1, self.trackCollab])
+        self.assertEqual(type(all_tracks), list)        # return type is list
+        self.assertTrue(all(isinstance(i, Track) for i in all_tracks))      # all elements in the returned list are Track obj     
+
+
+    # test if update_all_tracks_html returns correct html with correct all_tracks
+    def test_update_all_tracks_html(self):
+        class FakeRequest:
+            session = {"input_tracks": [self.track1.track_id]}
+        request = FakeRequest()
+
+        # no serach keyword test
+        all_tracks_html = update_all_tracks_html(request)
+
+        self.assertIsInstance(all_tracks_html, str)     # string returned
+        self.assertIn(self.trackCollab.track_id, all_tracks_html)       # trackCollab is not in input , so should be in all tracks
+        self.assertIn(self.track4.track_id, all_tracks_html)             # track4 is not in input , track4 is not by Zendaya(keyword), so should not be in all tracks
+        self.assertNotIn(self.track1.track_id, all_tracks_html)          # track1 is in input , so should not be in all tracks
+
+        # with search keyword test
+        all_tracks_html_with_keyword = update_all_tracks_html(request, 'Zendaya')
+        
+        self.assertIsInstance(all_tracks_html_with_keyword, str)     # string returned
+        self.assertIn(self.trackCollab.track_id, all_tracks_html_with_keyword)       # trackCollab is not in input , so should be in all tracks
+        self.assertNotIn(self.track4.track_id, all_tracks_html_with_keyword)             # track4 is not in input , so should be in all tracks
+        self.assertNotIn(self.track1.track_id, all_tracks_html_with_keyword)          # track1 is in input , so should not be in all tracks
+    
+    # test if update_input_tracks_html returns correct html with correct input tracks
+    def test_update_input_tracks_html(self):
+        class FakeRequest:
+            session = {"input_tracks": [self.track1.track_id]}      #track 1 is in input tracks
+        request = FakeRequest()
+
+        input_tracks_html = update_input_tracks_html(request)
+
+        self.assertIsInstance(input_tracks_html, str)       # return str
+        self.assertNotIn(self.track4.track_id, input_tracks_html)       # track4 should not be in input_track
+        self.assertNotIn(self.trackCollab.track_id, input_tracks_html)      # trackCollab should not be in input_track
+        self.assertIn (self.track1.track_id, input_tracks_html)     # track1 should be in input track.
+    
     # index function testing
     # test if index function loads okay, use the right template
     def test_index_loads_correctly(self):
@@ -1025,18 +1074,6 @@ class frontendFunctionsTest(TestCase):
         self.assertNotContains(response, self.track1.track_name)        # already in input tracks should not be in search results  
 
 
-    # test if getAllTracks work correctly
-    def test_getAllTracks_correct(self):
-        input_track_ids = [self.track4.track_id]
-
-        all_tracks = getAllTracks(input_track_ids)
-
-        self.assertNotIn(self.track4, all_tracks)       # track in input list is not included
-        self.assertEqual(all_tracks, [self.track1, self.trackCollab])
-        self.assertEqual(type(all_tracks), list)        # return type is list
-        self.assertTrue(all(isinstance(i, Track) for i in all_tracks))      # all elements in the returned list are Track obj     
-
-
     # addTrack funtion testing
     # testing if the add_to_inputs url does correctly, session variable is created and stores a correct input
     def test_add_track_correct(self):
@@ -1046,7 +1083,7 @@ class frontendFunctionsTest(TestCase):
         response = self.client.post(add_track_url_input_id)
 
         sessionVar = self.client.session
-        self.assertEqual(response.status_code, 302)     #redirected 
+        self.assertEqual(response.status_code, 200)     # request successful
         self.assertIn('input_tracks',sessionVar)        #input_tracks session var is created
         self.assertEqual(len(sessionVar['input_tracks']), 1)        #input_tracks session var has one element in it
         self.assertEqual(sessionVar["input_tracks"][0], valid_input_id)       # the element in the input_tracks session var is track details related to the input id
@@ -1066,13 +1103,13 @@ class frontendFunctionsTest(TestCase):
         
         # adding already-in-input-lists track -> so, not added
         response = self.client.post(add_track_url + invalid_track1 + '/')
-        self.assertEqual(response.status_code, 302)     # redirecting ok
+        self.assertEqual(response.status_code, 200)     # request successful
         self.assertEqual(len(sessionVar['input_tracks']), 2)    # same length as defined earlier above
         self.assertEqual(sessionVar['input_tracks'].count(invalid_track1), 1)          # only one self.track1, the duplicate self.track1 track is not added      
 
         # adding non-existing track -> so, not added
         response = self.client.post(add_track_url + invalid_track2 + '/')
-        self.assertEqual(response.status_code, 302)     # redirecting ok
+        self.assertEqual(response.status_code, 200)     # request successful
         self.assertEqual(len(sessionVar['input_tracks']), 2)    # same length as defined earlier above
         self.assertNotIn(invalid_track2, sessionVar['input_tracks'])    # invalid track 2 (non-existing track) is not added.
 
@@ -1084,7 +1121,7 @@ class frontendFunctionsTest(TestCase):
         response = self.client.post(update_preference_url, valid_input_preference)
 
         sessionVar = self.client.session
-        self.assertEqual(response.status_code, 302)     #redirected 
+        self.assertEqual(response.status_code, 200)     #success json response
         self.assertIn('preferences',sessionVar)        #preferences session var is created
         self.assertEqual(sessionVar['preferences']['energy_input'], 'High')        # preferences session var has correct value 1.2 for High value
         self.assertEqual(sessionVar['preferences']['tempo_input'], 'Low')       # preferences session var has correct value 0.8 for Low value
@@ -1105,7 +1142,7 @@ class frontendFunctionsTest(TestCase):
         response = self.client.post(remove_non_existing_track_url)
         sessionVar = self.client.session
 
-        self.assertEqual(response.status_code, 302)     # check if no error
+        self.assertEqual(response.status_code, 200)     # request successful
         self.assertEqual(len(sessionVar['input_tracks']), 3)        # check if length is still the same as created above (3)
 
         # remove the existing track
@@ -1115,7 +1152,7 @@ class frontendFunctionsTest(TestCase):
         response1 = self.client.post(remove_track_url)
         sessionVar = self.client.session
 
-        self.assertEqual(response1.status_code, 302)        # check if no error
+        self.assertEqual(response1.status_code, 200)       # request successful
         self.assertEqual(len(sessionVar['input_tracks']), 2)        # check if one element is removed from the list
         self.assertNotIn(remove_track, [track for track in sessionVar['input_tracks']])      # check if the removed element is not in the list 
 
@@ -1139,8 +1176,7 @@ class frontendFunctionsTest(TestCase):
 
         response = self.client.get(recommend_url)
         sessionVar = self.client.session
-        self.assertEqual(response.status_code, 302)     # url redirect successful
-        self.assertRedirects(response, "/")             # redirect to correct url
+        self.assertEqual(response.status_code, 200)     # request successful
         self.assertIn('recommended_track',sessionVar)       # recommended_track gets created in the function
         self.assertEqual(sessionVar['recommended_track']['trackId'], self.trackCollab.track_id)     #recommended_track has the expected value
 
@@ -1156,11 +1192,10 @@ class frontendFunctionsTest(TestCase):
 
         response = self.client.get(recommend_url, follow=True)      # follow true is added for browser acting as client
 
-        frontendMsg = list(get_messages(response.wsgi_request))     # browser receving error msg
-        errMsg_from_logic = "No tracks match the given preferences. No recommendation Available"
+        data = response.json()        
+        errMsg_from_logic = "No tracks match the given preferences"
         sessionVar = self.client.session
-        self.assertEqual(response.status_code, 200)     # browser receieves successful request
+        self.assertEqual(response.status_code, 400)     # browser receieves bad request
         self.assertNotIn('recommended_track',sessionVar)       # recommended_track does not get created in the function
-        self.assertEqual(len(frontendMsg), 1)       # 1 msg raise
-        self.assertEqual(str(frontendMsg[0]), errMsg_from_logic)        # no recommendation leads to err msg
+        self.assertEqual(data["error"], errMsg_from_logic)        # no recommendation leads to err msg
 
