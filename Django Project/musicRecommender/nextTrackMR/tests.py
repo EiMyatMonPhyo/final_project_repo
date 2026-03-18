@@ -168,18 +168,6 @@ class recommenderLogicTest(TestCase):
         with self.assertRaises(ValueError):
             get_track_vectors_from_database(["abcdefg11234567"])
 
-    # test if weighting is applied correctly
-    # def test_weight_vector_changes_energy_and_tempo(self):
-    #     avg_vector = np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
-
-    #     normal = weight_vector(avg_vector.copy(), energy_weight=1.0, tempo_weight=1.0)
-    #     high_energy = weight_vector(avg_vector.copy(), energy_weight=2.0, tempo_weight=1.0)
-    #     low_tempo = weight_vector(avg_vector.copy(), energy_weight=1.0, tempo_weight=0.7)
-        
-    #     self.assertNotEqual(normal[1], high_energy[1]) 
-    #     self.assertGreater(high_energy[1], normal[1])
-    #     self.assertNotEqual(normal[4], low_tempo[4]) 
-    #     self.assertLess(low_tempo[4], normal[4])
 
     # testing if euclidean equation gives correct answer
     def test_Euclidean_equation_is_correct(self):
@@ -195,18 +183,6 @@ class recommenderLogicTest(TestCase):
         min_index = get_track_index_with_minimum_distance(distances)
         
         self.assertEqual(min_index,2)
-
-    # # DELETED FUNCTION#
-    # # test if the Euclidean recommender output is Track obj
-    # def test_recommenderLogicReturnsTrack(self):
-    #     input_tracks = ["4qEoqyPbLYnLOii6mKlIjI","5lz0NiPw32Gq4kMIUJvuw2"]
-    #     input_preferences = {
-    #         "energy_weight" : 1.0,
-    #         "tempo_weight" : 1.2
-    #     }
-    #     result = recommend_Euclidean(input_tracks, input_preferences)
-
-    #     self.assertIsInstance(result, Track)
 
     # test if get_top_tracks returns correct data
     def test_get_top_tracks_return_correct(self):

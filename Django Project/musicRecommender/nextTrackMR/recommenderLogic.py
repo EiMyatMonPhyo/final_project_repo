@@ -31,27 +31,6 @@ def get_track_vectors_from_database(input_track_ids):
     # print (input_vectors)
     return input_vectors
 
-# """
-#     input : average vector (of all input tracks' vectors), input energy weight value, input tempo weight value
-#     output : the weighted vector 
-#     function : average vector is applied weighting with energy and tempo weight input, and return the resulting weighted vector
-# """
-# def weight_vector(avg_vector, energy_weight, tempo_weight):
-#     # index 1: energy
-#     # print ("Before weighting energy : " , avg_vector[1])
-#     avg_vector[1] = avg_vector[1] * energy_weight
-#     # print ("After weighting energy : " , avg_vector[1])
-
-
-#     # index 4: tempo
-#     # print ("Before weighting tempo : " , avg_vector[4])
-#     avg_vector[4] = avg_vector[4] * tempo_weight
-#     # print ("After weighting tempo : " , avg_vector[4])
-
-#     # this is now target vector
-#     # print ("After weighting : ", avg_vector)
-#     return avg_vector
-
 """
     input : two vectors
     output : euclidean distance between them
@@ -80,81 +59,6 @@ def get_track_index_with_minimum_distance(comparison_results):
     
     return min_index
     
-  
-# ################### Euclidean model related (used in views.py) ############################
-# def recommend_Euclidean(input_track_ids, input_preferences):
-
-#     # for null input tracks
-#     if not input_track_ids:
-#         raise ValueError("No input tracks provided")
-    
-#     # for null input preferences 
-#     if input_preferences is None:
-#         input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
-    
-#     # print ("YOUR INPUTS ARE AS FOLLOWS : ")
-#     # print ("input tracks : ")
-    
-#     # for trackId in input_track_ids:
-#         # print (trackId)
-
-#     # print ("User Preference", input_preferences["energy_weight"], " energy weight , ", input_preferences["tempo_weight"], " tempo weight.")
-#     # print ("==================================")
-
-#     ########## recommender logic (Euclidean) ##############
-
-#     # find finalized vectors of the input track ids in the database
-#     input_vectors = get_track_vectors_from_database(input_track_ids)
-
-
-
-#     # find average vector
-#     avg_vector = np.mean(input_vectors, axis=0)      #column wise
-#     # print (avg_vector)
-
-
-
-#     # get preferences
-#     energy_weight = input_preferences["energy_weight"]
-#     tempo_weight = input_preferences["tempo_weight"]
-    
-#     # weighting with user preferences
-#     target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
-    
-
-
-#     # Euclidean (find the matching track)
-#     # Find the other valid songs in the database (excluding input tracks)
-#     all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
-    
-
-
-#     # get the list of distances between each valid song and target vector
-#     comparison_results = []     # comparison results to be stored in this array
-#     # for every track (excluding the ones the user inputs), check the similarity with Euclidean
-#     for track in all_tracks:        
-#         vector = track.finalized_vector     # vector of the current track of the database
-#         euclidean = calculate_Euclidean(target_vector, np.array(json.loads(vector)))
-#         comparison_results.append(euclidean)        # store to the array
-#     # print (comparison_results)
-    
-
-
-#     # get index of track with minimum distance
-#     min_index = get_track_index_with_minimum_distance(comparison_results)
-    
-
-
-#     # find the matching track's data in database
-#     # print ("the matching track : ", all_tracks[min_index])      # the same index of all tracks list
-#     track = all_tracks[min_index]
-
-
- 
-#     # choose random track
-#     # # track = Track.objects.order_by('?').first()
-#     return track
-
 
 """
     input : comparison_results (list of tuples (Track obj, its comparison result), k value(amount of recommendations), higher (higher to lower order[Cosine] or lower to higher order[Euclidean]))
@@ -214,9 +118,6 @@ def reward_track_by_matching_artists(candidate_artists, input_artists_frequency)
         if candidate_artist in input_artists_frequency:
             #if the artist is in input_artists_frequency, the artist appears in input_artists, so reward that based on its frequency
             score += input_artists_frequency[candidate_artist] 
-            # print (candidate_artist, 'is in input_tracks artists')
-    # score here : the number of input artists matched by candidate artists
-    # print ("number of input artists matched by candidate artists : ", score)
 
     # the number of input tracks artists
     sum_of_all_freq = sum(input_artists_frequency.values())
@@ -271,6 +172,9 @@ def filter_tracks_by_pref(pref, eligible_tracks):
 ################### Euclidean model related (Used in api.py)############################
 def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
     print("------------------EUCLIDEAN MODEL------------------")
+
+    valid_pref = ['High', 'Medium', 'Low']
+
     # for null input tracks
     if not input_track_ids:
         raise ValueError("No input tracks provided")
@@ -297,6 +201,16 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
 
     # if the preference is inputted, filter the tracks based on input
     if input_preferences: 
+        energy = input_preferences.get("energy_input")
+        tempo = input_preferences.get("tempo_input")
+
+        # check if input_pref energy and tempo are valid values
+        if energy and energy not in valid_pref:
+            raise ValueError("Invalid energy preference")
+
+        if tempo and tempo not in valid_pref:
+            raise ValueError("Invalid tempo preference")
+
         eligible_tracks = filter_tracks_by_pref(input_preferences, eligible_tracks)
         
     # if filtering is too strict and no track left, raise error
@@ -596,211 +510,3 @@ def recommend_random_topk(input_track_ids, k=1):
     return recommended_tracks
 
 
-
-
-# ##################################################################################
-# ##################not using anymore code##########################################
-
-########################## Recommend cosine model related ######################
-
-# """
-#     input : list of distances (cosine)
-#     output : index with closest to 1 cosine distance value
-#     function : find the index with closest to 1 cosine distance value and returns that index
-# """
-# def get_closest_to_one_index(comparison_results):
-#     closestToOne = 0
-#     closestToOneIndex = None
-#     for index, result in enumerate(comparison_results):
-#         if (result >= -1 and result <= 1):       #within the range -1 to 1
-#             if (closestToOne < result):         # if new value is larger than closestToOne, 
-#                 closestToOne = result           # replace closestToOne with larger new value
-#                 closestToOneIndex = index       # replace closestToOneIndex with index
-
-#     if closestToOneIndex is None:
-#         raise ValueError("No valid cosine similarity found")
-    
-#     return closestToOneIndex
-
-
-# # Cosine similarity based recommendation logic
-# def recommend_Cosine(input_track_ids, input_preferences):
-#     # for null input tracks
-#     if not input_track_ids:
-#         raise ValueError("No input tracks provided")
-    
-#     # for null input preferences 
-#     if input_preferences is None:
-#         input_preferences = {"energy_weight": 1.0, "tempo_weight": 1.0}
-
-
-
-#     # find finalized vectors of the input track ids in the database
-#     input_vectors = get_track_vectors_from_database(input_track_ids)
-
-
-
-#     # find average vector
-#     avg_vector = np.mean(input_vectors, axis=0)      #column wise
-#     # print (avg_vector)
-
-
-
-#     # get preferences
-#     energy_weight = input_preferences["energy_weight"]
-#     tempo_weight = input_preferences["tempo_weight"]
-    
-#     # weighting with user preferences
-#     target_vector = weight_vector(avg_vector, energy_weight, tempo_weight)
-
-
-#     # Find the other valid songs in the database (excluding input tracks)
-#     all_tracks = Track.objects.exclude(track_id__in = input_track_ids)      # the list of all tracks in the database to be compared to the target vector
-    
-
-    
-#     # get the list of distances between each valid song and target vector
-#     comparison_results = []     # comparison results to be stored in this array
-#     # for every track (excluding the ones the user inputs), check the similarity with Euclidean
-#     for track in all_tracks:        
-#         vector = track.finalized_vector     # vector of the current track of the database
-#         cosine = calculate_Cosine(target_vector, np.array(json.loads(vector)))
-#         comparison_results.append(cosine)        # store to the array
-#     # print (comparison_results)
-
-
-#     # get the index with cosine distance closest to 1
-#     closestToOneIndex = get_closest_to_one_index(comparison_results)
-
-   
-#     # find the matching track's data in database
-#     # print ("the matching track : ", all_tracks[closestToOneIndex])      # the same index of all tracks list
-#     track = all_tracks[closestToOneIndex]
-
-
-
-#     # choose random track
-#     # # track = Track.objects.order_by('?').first()
-#     return track 
-
-
-# ############################# recommend_by_artist model related##############################
-# """
-#     input : dict (artist : frequency)
-#     output : maximum frequency value an artist has in the input
-#     function : find max value of frequency (value part of the dict) and return the maximum freq value
-# """
-# # get maximum frequency an artist/artists occur
-# def get_max_freq_of_artist(artist_frequency):
-#     # find max freq only when artist_frequency is not Empty. If empty, return max_frequency as 0
-#     if artist_frequency is not None:
-#         max_frequency = max(artist_frequency.values())      #find the maximum frequecy value
-#         print ("max : ", max_frequency)
-#         return max_frequency
-#     else:       # no freqeuncy
-#         return 0
-    
-
-# """
-#     input : artist_ids (a list of artist id related to input tracks), 
-#             artist_frequency(a dict(artist : frequency) which shows artists and their number of occurence),
-#             max_frequency (the biggest number an artist has appeared)
-#     output : list of most frequent artist ids (non-repeating)
-#     function : check if the artist id has the max frequency value for each artist id in the input list, if yes, add the artist id to the list to be returned. (no artist_id is repeated in the list)
-# """
-# # get a list of top most occurring artist ids
-# def get_most_frequent_artists(artist_ids, artist_frequency, max_frequency):
-#     top_artists = []
-#     if len(artist_ids) != 0:    # if empty list is input, return None
-#         for artist_id in artist_ids:    # among artists related to input tracks
-#         # if an artist has max_frequency, put its id to top_artists
-#             if artist_frequency[artist_id] == max_frequency:
-#                 if artist_id not in top_artists:        # only add if the artist id is not already in top_artists
-#                     print ("valid artist : ",artist_id)
-#                     top_artists.append(artist_id)
-#         print ("top artists : ", top_artists)
-#         return top_artists
-#     return None
-
-
-# """
-#     input : chosen_artist_id (randomly chosen artist id), input_track_ids (list of user input tracks)
-#     output : random track of that chosen artist
-#     function : find Artist obj (related to chosen artist id), then find Track objs related to that Artist obj through link table (no user input tracks included),
-#                randomly choose a Track obj from those Track objs, and return that Track obj.
-# """
-# # get a random track object related to the input artist id
-# def get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids):
-#     try: 
-#         # find tracks of the chosen artist
-#         chosen_artist_object = Artist.objects.get(artist_id = chosen_artist_id)     # get artist row with chosen artist id
-#         tracks_by_chosen_artist = Track.objects.filter(trackartistlink__artist = chosen_artist_object).exclude(track_id__in = input_track_ids)  #get Track instances whose related artist rows have chosen artist id (not include the tracks in user input tracks list)
-
-#         # # choose random track from tracks of chosen artist
-#         track = tracks_by_chosen_artist.order_by('?').first()
-#         print ("track chosen : ", track)
-#         return track
-
-#     except:
-#         raise ValueError("Error getting track")
-
-
-# """
-#     input : a list of input track ids
-#     output : a random track 
-#     function: find a random track from all tracks (excluding input tracks) in Track table and return that
-# """
-# # get a random Track obj if no artist is chosen 
-# def get_any_random_track(input_track_ids):
-#     try:
-#         all_tracks = Track.objects.all().exclude(track_id__in = input_track_ids)
-#         track = all_tracks.order_by('?').first()
-#     except: 
-#         raise ValueError("Error Getting Track")
-    
-#     # for rare case like there is no more tracks in the database to select a random track from
-#     if track is None:
-#         raise ValueError("No available track for recommendation")
-#     return track
-
-
-# """
-#     input : list of user input tracks (input_track_ids)
-#     output : random Track of most frequent artist
-#     function : get artist ids of input track ids, find most frequent artist, randomly choose a Track of that most frequent artist, and return that Track obj
-# """
-# # get random Track object of most frequent artist by input tracks list
-# def recommend_random_by_artist(input_track_ids):  
-
-    # for null input tracks
-    # if not input_track_ids:
-    #     raise ValueError("No input tracks provided")
-
-    # #list of artist ids of every input tracks
-    # artist_ids = get_artist_ids_list(input_track_ids)
-
-    # # get the artist ids and their corresponding frequency    
-    # artist_frequency = get_artist_id_freq(artist_ids)
-
-    # # get most occurring artist ids
-    # max_frequency = get_max_freq_of_artist(artist_frequency)
-    
-    # # get a list of top most occurring artist ids
-    # top_artists = get_most_frequent_artists(artist_ids, artist_frequency, max_frequency)     # list to store top occurring artists
-    
-    # if top_artists is not None:
-    #     # random choice from top_artists
-    #     chosen_artist_id = random.choice(top_artists)
-    #     print ("chosen artist id : ", chosen_artist_id) 
-    # else: 
-    #     chosen_artist_id = None
-
-    # if chosen_artist_id is not None:
-    #     # get a random Track obj (excluding user input tracks) of the chosen artist 
-    #     track = get_random_track_row_of_chosen_artist(chosen_artist_id, input_track_ids)
-    #     if track is None:   # if none is returned then, that means there is no other tracks from the chosen artist, so just choose random track. 
-    #         track = get_any_random_track(input_track_ids)
-    # else:
-    #     # if no artist is chosen, get any track
-    #     track = get_any_random_track(input_track_ids)
-    # return track

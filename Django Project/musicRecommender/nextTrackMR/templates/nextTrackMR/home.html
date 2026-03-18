@@ -105,24 +105,95 @@
             </div>
         </div>
         
-        <iframe 
-            id="music-player" 
-            src="{% if recommended_track %}
-                    https://open.spotify.com/embed/track/{{ recommended_track.trackId }}
-                {% elif all_tracks %}
-                    https://open.spotify.com/embed/track/{{ all_tracks.0.track_id }}
-                {% else %}
-        
-                {% endif %}" 
-            frameborder="0">
-        </iframe>
-        
+        <!-- music player -->
+        <div id="music-player-container">
+            <button id="prev-btn">Prev</button>
+            {% if all_tracks %}
+            <iframe 
+                id="music-player" 
+                src="https://open.spotify.com/embed/track/{{ all_tracks.0.track_id }}" 
+                frameborder="0">
+            </iframe>
+            {% endif %}
+            <button id="next-btn">Next</button>
+        </div>
+       
+
         <script>
             console.log("JAVASCRIPT LOADING")
+
+            let track_history = [];     //store track in order
+            let current_track_index = -1;   // current track index (default : -1) 
+
+            // for prev/next btn disabling
+            function updateButtons() {
+                // if no more prev track , disable the prev btn
+                if (current_track_index <= 0){
+                    document.getElementById('prev-btn').disabled = true;
+                } else {   //otherwise, enable
+                    document.getElementById('prev-btn').disabled = false;
+                }
+                // if no more next track, disable the next Btn 
+                if (current_track_index >= track_history.length - 1){
+                    document.getElementById('next-btn').disabled = true;
+                } else { //otherwise, enable
+                    document.getElementById('next-btn').disabled = false;
+                }
+            }
+            // setting first default track in history
+            window.addEventListener('load', function() {
+                let first_track_id = "{{ all_tracks.0.track_id }}"; 
+                track_history.push(first_track_id);
+                current_track_index = 0;
+                updateButtons();
+            });
+
+            // setting track in music player
             function playTrack(trackId){
+                // get music player and set the track with trackId (new track set)
                 let music_player = document.getElementById('music-player');
                 music_player.src = `https://open.spotify.com/embed/track/${trackId}`;
+                
+                // store trackId in history
+                if (track_history[current_track_index] != trackId){     // new track has been set
+                    // if previous btn is pressed and new song is set after that, we delete the future tracks
+                    track_history = track_history.slice(0, current_track_index + 1);        
+
+                    track_history.push(trackId)     // add new track to history
+                    current_track_index++;      // current index + 1
+                    console.log("Current index: ", current_track_index);
+                    console.log("Changed track history: ", track_history);
+                }
+                updateButtons();
             }
+            
+            // prev btn event listener
+            document.getElementById('prev-btn').addEventListener('click', function(){
+                if (current_track_index > 0) {        // if current track is second track or later tracks of history, you can play previous track 
+                    current_track_index--;        // move current track index backward
+                    let trackId = track_history[current_track_index];       // take the previous track id from track history 
+                    document.getElementById('music-player').src =       //set that
+                        `https://open.spotify.com/embed/track/${trackId}`;
+                } else {        // this means no previous track in history
+                    alert("No previous track.");
+                }
+                updateButtons();
+            });
+
+            // prev btn event listener
+            document.getElementById('next-btn').addEventListener('click', function(){
+                if (current_track_index < track_history.length - 1) {        // if current track is second to last track or earlier tracks of history, you can play next track 
+                    current_track_index++;        // move current track index forward
+                    let trackId = track_history[current_track_index];       // take the next track id from track history 
+                    document.getElementById('music-player').src =       //set that
+                        `https://open.spotify.com/embed/track/${trackId}`;
+                } else {        // this means no previous track in history
+                    alert("No next track.");
+                }
+                updateButtons();
+            });
+
+            
 
             // gets called when add track button is clicked
             function addTrack(trackId){
@@ -138,7 +209,10 @@
                     // replace "Your Playlist" section
                     document.getElementById("input-tracks-list").innerHTML = data.input_tracks_html;
                 })
-                .catch(error => console.error("Error:", error));
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("Failed to add the track to Input List.");
+                });
             }
 
             function removeTrack(trackId){
@@ -153,7 +227,10 @@
                     // replace "Your Playlist" section
                     document.getElementById("input-tracks-list").innerHTML = data.input_tracks_html;
                 })
-                .catch(error => console.error("Error: ", error))
+                .catch(error => {
+                    console.error("Error: ", error);
+                    alert("Failed to remove the track from the input list");
+                })
             }
 
             // csrf token from frontend (to be passed to backend via post header)
@@ -181,7 +258,10 @@
                     document.getElementById('tempo_pref').value = data.tempo_input ?? "None";
                     console.log("preferences saved!")
                 })
-                .catch(error => console.error("Error updating preferences:", error));
+                .catch(error => {
+                    console.error("Error updating preferences:", error);
+                    alert("Failed to update preferences.");
+                });
             }
 
             function recommend(){
@@ -194,7 +274,10 @@
                     }
                     document.getElementById('recom-track-detail-container').innerHTML = data.recommendation_html;
                 })
-                .catch(error => console.error("Error finding recommendation: ", error))
+                .catch(error => {
+                    console.error("Error finding recommendation: ", error);
+                    alert("Failed to get recommendation. Please try again.");
+                })
             }
         
             document.getElementById('all-tracks-title').addEventListener('click', function(e) {
@@ -213,9 +296,11 @@
                     document.getElementById("all-tracks-list").innerHTML = data.all_tracks_html;
                     document.getElementById("all-tracks-title").innerHTML = "<h2>All Tracks</h2>";     // change title
                     document.querySelector('.search-bar-input').value = '';     //clear search bar
-                    // history.pushState(null, '', '/');  // the URL shows "/"
                 })
-                .catch(error => console.error("Error resetting tracks:", error));
+                .catch(error => {
+                    console.error("Error resetting tracks:", error);
+                    alert("Failed to show all tracks.");
+                });
             }
 
             // search tracks
@@ -234,7 +319,10 @@
                     document.getElementById("all-tracks-list").innerHTML = data.search_tracks_html;
                     document.getElementById("all-tracks-title").innerHTML = '<h2>Your Search Results</h2><a href="#" id="reset-tracks-btn">Show All Tracks</a>'
                 })
-                .catch(error => console.error("Error searching tracks:", error));
+                .catch(error => {
+                    console.error("Error searching tracks:", error);
+                    alert("Failed to search.");
+                });
             }
         </script>
         
