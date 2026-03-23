@@ -8,10 +8,6 @@ from django.contrib import messages
 from .models import *
 from .recommenderLogic import *
 
-# fetching track data from Spotify API
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials 
-
 
 # get the input tracks from db, based on the ipnut_tracks order.
 def get_input_tracks_in_order(input_track_ids):
@@ -71,7 +67,6 @@ def index(request):
 
     recommended_track = request.session.get('recommended_track', None)
     preferences = request.session.get('preferences', {'energy_input': None, 'tempo_input': None})       #set to None if nothing is selected
-    print ("Current values : \n Input Tracks : " , input_tracks,"\n Recommended track : ", recommended_track,"\n Preference : ", preferences)
     return render(request, 'nextTrackMR/home.html', {'all_tracks': all_tracks,'input_tracks': input_tracks, 'recommended_track': recommended_track, 'preferences': preferences})
     
 
@@ -81,9 +76,6 @@ def searchTracks(request):
     return JsonResponse({
         "search_tracks_html" : update_all_tracks_html(request, keyword)
     })
-
-
-
 
 
 # add track 
@@ -100,7 +92,6 @@ def addTrack(request, track_id):
         request.session['input_tracks'].append(track_id)        # add to input_tracks
         request.session.modified = True
 
-    print (request.session['input_tracks'])
     search_keyword = request.GET.get('q')  #get form url
 
     response_to_frontend = {
@@ -154,7 +145,6 @@ def get_artists_list(recommendation):
 
 
 def recommend(request):
-    print("recommend")
 
     # create session variable 'input_tracks' 
     input_track_ids = request.session.get('input_tracks', [])
@@ -178,22 +168,17 @@ def recommend(request):
 
         # get artists of the recommended track
         artists = get_artists_list(recommendation[0])
-        print ("YOUR TARGET PREF : ", "ENERGY : ", preferences["energy_input"], "TEMPO : ", preferences["tempo_input"])
-        print ("RECOMMENDED TRACK'S PREF : ", "ENERGY : ", recommendation[0].energy, "TEMPO", recommendation[0].tempo)
         recommended_track = {
             'trackId' : recommendation[0].track_id,
             'trackName': recommendation[0].fixed_track_name,
             'artists' :  artists
         }
 
-        print ("recommended : ",recommended_track)
 
         request.session['recommended_track'] = recommended_track            # use session to store recommended track
         request.session.modified = True
 
-        print(recommended_track['trackId'], "& ", recommended_track['trackName'] )
-        for artist in recommended_track['artists']:
-            print ("artist : ", artist)
+ 
         
         recommendation_html = render_to_string("nextTrackMR/recommendation.html", {"recommended_track": recommended_track}, request=request)
         response_to_frontend = {

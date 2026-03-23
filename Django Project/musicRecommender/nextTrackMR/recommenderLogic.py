@@ -28,7 +28,6 @@ def get_track_vectors_from_database(input_track_ids):
 
         input_vectors.append(np.array(json.loads(track.finalized_vector)))            # json array to python list
 
-    # print (input_vectors)
     return input_vectors
 
 """
@@ -39,25 +38,6 @@ def get_track_vectors_from_database(input_track_ids):
 def calculate_Euclidean(vector1, vector2):
     result = np.linalg.norm(vector1 - vector2)
     return result 
-
-"""
-    input : list of calculated Euclidean distances 
-    output : the index number with minimum Euclidean distance value
-    function : find index with minimum distance and return index
-"""
-def get_track_index_with_minimum_distance(comparison_results):
-    
-    # minimum Euclidean value
-    min_Euclidean = np.min(comparison_results)
-
-    # finding the index with minimum value of euclidean result
-    for index, result in enumerate(comparison_results):
-        if (result == min_Euclidean):
-            # print("minimun value is found at index ", index , " : ", result)
-            min_index = index
-            break
-    
-    return min_index
     
 
 """
@@ -88,14 +68,12 @@ def normalize_Euclidean(all_dist_scores):
     maximum = max(all_dist_scores)
     minimum = min(all_dist_scores)
     norm_scores_list = []
-    print ("all dist scores length: ", len(all_dist_scores))
     for score in all_dist_scores:
         if maximum == minimum:
             norm_scores_list.append(1.0)
         else: 
             min_max = (score - minimum)/ (maximum - minimum)            # use min-max normalization formula
             norm_scores_list.append(1-min_max)      # since the smaller euclidean score, the better, applying (1 - min-max) mean larger euclidean will have smaller reward & smaller euclidean will have larger reward.
-    print ("check if normalized scores has same length as all_dist_scores :", len(norm_scores_list))
     return norm_scores_list
 
 
@@ -171,7 +149,6 @@ def filter_tracks_by_pref(pref, eligible_tracks):
 """
 ################### Euclidean model related (Used in api.py)############################
 def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
-    print("------------------EUCLIDEAN MODEL------------------")
 
     valid_pref = ['High', 'Medium', 'Low']
 
@@ -192,7 +169,6 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
 
     # find average vector
     avg_vector = np.mean(input_vectors, axis=0)      #column wise
-    # print (avg_vector)
 
     # Euclidean (find the matching track)
     # Find the other valid songs in the database (excluding input tracks)
@@ -216,7 +192,6 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
     # if filtering is too strict and no track left, raise error
     if not eligible_tracks.exists():
         raise ValueError("No tracks match the given preferences. No recommendation Available")
-    print ("ELIGIBLE TRACK COUNT : ", len(eligible_tracks))
 
     # get the list of distances between each valid song and target vector
     comparison_results = []     # comparison results to be stored in this array
@@ -245,8 +220,6 @@ def recommend_Euclidean_topk(input_track_ids, input_preferences = None, k = 1):
 
 
         comparison_results.append((t, final_score))        # store to the array
-    # print (comparison_results)
-
 
     top_tracks = get_top_tracks(comparison_results, k)
 
@@ -270,7 +243,6 @@ def calculate_Cosine(vector1, vector2):
 
 # Cosine similarity based recommendation logic
 def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
-    print("------------------COSINES MODEL------------------")
 
     valid_pref = ['High', 'Medium', 'Low']
     # for null input tracks
@@ -318,7 +290,6 @@ def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
     # if filtering is too strict and no track left, raise error
     if not eligible_tracks.exists():
         raise ValueError("No tracks match the given preferences")
-    print ("ELIGIBLE TRACK COUNT : ", len(eligible_tracks))
 
 
 
@@ -340,7 +311,7 @@ def recommend_Cosine_topk(input_track_ids, input_preferences = None, k=1):
         artist_weight = 0.25       # (25%)
         final_score = cosine * cosine_weight + artist_score * artist_weight
 
-        comparison_results.append((t,final_score))        # store (track_id, its result) tuple to the array
+        comparison_results.append((t,final_score))        # store (track_obj, its result) tuple to the array
 
 
     # for evaluation, top 10 tracks will be used, so, here, we will recommend 10 tracks
@@ -383,10 +354,8 @@ def get_artist_ids_list(input_track_ids):
 def get_artist_id_freq(artist_ids):
     # only find artists and their frequencies if input artist ids list is not null, else return None for (artist : frequency)
     if len(artist_ids) != 0:
-        print ("Artist id : ", artist_ids)
         # get artist ids and their corresponding frequency
         artist_frequency = Counter(artist_ids)          # returned : like a dict ->  {artistId : frequency, artistId : frequency, ...}
-        print ("Artist frequency is ", artist_frequency)
         return artist_frequency
     else:       # no artist ids in the input list, None is returned as (artist: frequency) pair
         return None

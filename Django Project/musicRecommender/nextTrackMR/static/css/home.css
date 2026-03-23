@@ -288,7 +288,7 @@
     }
 
     #recommend-btn:hover{
-        background-color: 415A77;
+        background-color: #415A77;
         border-color: #E0E1DD;
         color : #E0E1DD;
         transition-duration: 0.3s;

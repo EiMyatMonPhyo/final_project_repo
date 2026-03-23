@@ -177,12 +177,6 @@ class recommenderLogicTest(TestCase):
         result = calculate_Euclidean(np.array([1,2,3]), np.array([1,1,1]))
         self.assertEqual(result, np.sqrt(5))
 
-    # test if minimum distance index is returned correctly
-    def test_get_track_with_minimum_distance_returns_correct_index(self):
-        distances = [0.1, 0.3, 0.0, 0.9]
-        min_index = get_track_index_with_minimum_distance(distances)
-        
-        self.assertEqual(min_index,2)
 
     # test if get_top_tracks returns correct data
     def test_get_top_tracks_return_correct(self):
@@ -386,7 +380,7 @@ class recommenderLogicTest(TestCase):
         for id in input_track_ids:
             self.assertNotIn(id, recommended_ids1)
 
-        recommended_no_pref = recommend_Cosine_topk(input_track_ids)
+        recommended_no_pref = recommend_Euclidean_topk(input_track_ids)
         recommended_ids_no_pref = {t.track_id for t in recommended_no_pref}
         self.assertIsInstance(recommended_no_pref, list)
         self.assertEqual(len(recommended_no_pref), 1)     
@@ -1175,3 +1169,20 @@ class frontendFunctionsTest(TestCase):
         self.assertNotIn('recommended_track',sessionVar)       # recommended_track does not get created in the function
         self.assertEqual(data["error"], errMsg_from_logic)        # no recommendation leads to err msg
 
+
+    def test_reset_all_tracks(self):
+        sessionVar = self.client.session
+
+        sessionVar['input_tracks'] = [self.track1.track_id, self.track4.track_id]
+        sessionVar.save()
+
+        reset_track_url = '/reset_all_tracks/'
+        response = self.client.get(reset_track_url)
+
+        self.assertEqual(response.status_code, 200)  # request successful
+        self.assertIn('all_tracks_html', response.json())  # JSON has 'all_tracks_html'
+        all_tracks_html_content = response.json()['all_tracks_html']
+        self.assertTrue(len(all_tracks_html_content) > 0)       # have some html returned
+        self.assertNotIn(self.track1.track_id, all_tracks_html_content) # already in input tracks, not in all tracks list
+        self.assertNotIn(self.track4.track_id, all_tracks_html_content) # already in input tracks, not in all tracks list
+        self.assertIn(self.trackCollab.track_id, all_tracks_html_content)       # not in input tracks, should be in all tracks list

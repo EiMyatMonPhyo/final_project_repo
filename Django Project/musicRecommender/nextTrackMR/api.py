@@ -47,14 +47,14 @@ def make_recommendation(request, recommend_function, use_pref=True):
 
 # Main model : Euclidean
 @api_view(['POST'])
-def recommendTrackId(request):
-    return make_recommendation(request, recommend_Euclidean_topk)
+def recommendTrackIdCosine(request):
+    return make_recommendation(request, recommend_Cosine_topk)
 
 
 # Baseline : Cosine
 @api_view(['POST'])
-def recommendTrackIdCosine(request):
-    return make_recommendation(request, recommend_Cosine_topk)
+def recommendTrackIdEuclidean(request):
+    return make_recommendation(request, recommend_Euclidean_topk)
 
 # baseline : random by artist
 @api_view(['POST'])

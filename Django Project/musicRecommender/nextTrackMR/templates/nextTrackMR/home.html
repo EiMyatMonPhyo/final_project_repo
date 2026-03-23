@@ -99,7 +99,7 @@
 
                     <!-- track details -->
                     <div id="recom-track-detail-container">
-                        {% include "nextTrackMR/recommendation.html "%}
+                        {% include "nextTrackMR/recommendation.html"%}
                     </div>  
                 </div>
             </div>
@@ -143,8 +143,10 @@
             // setting first default track in history
             window.addEventListener('load', function() {
                 let first_track_id = "{{ all_tracks.0.track_id }}"; 
-                track_history.push(first_track_id);
-                current_track_index = 0;
+                if (first_track_id) {
+                    track_history.push(first_track_id);
+                    current_track_index = 0;
+                }
                 updateButtons();
             });
 
@@ -325,6 +327,7 @@
                 });
             }
         </script>
+        
         
     </body>
 </html>
