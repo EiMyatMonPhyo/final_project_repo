@@ -2,7 +2,7 @@
 Tech stack : Python Django framewowrk, HTML, CSS, Javascript, AJAX, SQLite
 
 ## How to run
-!. Clone the repository 
+1. Clone the repository 
 2. Navigate to "Django Project" folder (cd "Django Project")
 3. Create a Virtual environment (python -m venv djangoVenv)
 4. Go to the Virtual enviroment (.\djangoVenv\Scripts\activate.ps1)
